@@ -101,7 +101,12 @@ export function Dashboard() {
   const [editDeviceName, setEditDeviceName] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [previewState, setPreviewState] = useState<{ url: string; type: "image" | "pdf"; name: string } | null>(null);
+  const [previewState, setPreviewState] = useState<
+    | { type: "image" | "pdf"; url: string; name: string }
+    | { type: "text"; content: string; name: string }
+    | { type: "spreadsheet"; html: string; name: string }
+    | null
+  >(null);
   const [previewLoadingFile, setPreviewLoadingFile] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const selectedDeviceIdRef = useRef<string | null>(null);
@@ -342,9 +347,26 @@ export function Dashboard() {
         return;
       }
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const type = file.mimeType?.startsWith("image/") ? "image" : "pdf";
-      setPreviewState({ url, type, name: file.fileName });
+      const mime = file.mimeType || "";
+
+      if (mime.startsWith("image/")) {
+        setPreviewState({ type: "image", url: URL.createObjectURL(blob), name: file.fileName });
+      } else if (mime === "application/pdf") {
+        setPreviewState({ type: "pdf", url: URL.createObjectURL(blob), name: file.fileName });
+      } else if (mime.startsWith("text/") || mime === "application/json") {
+        const content = await blob.text();
+        setPreviewState({ type: "text", content, name: file.fileName });
+      } else if (
+        mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+        mime === "application/vnd.ms-excel"
+      ) {
+        const { read, utils } = await import("xlsx");
+        const arrayBuffer = await blob.arrayBuffer();
+        const workbook = read(new Uint8Array(arrayBuffer));
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const html = utils.sheet_to_html(sheet);
+        setPreviewState({ type: "spreadsheet", html, name: file.fileName });
+      }
     } catch {
       showToast("Could not load preview");
     } finally {
@@ -354,7 +376,7 @@ export function Dashboard() {
 
   function closePreview() {
     setPreviewState((prev) => {
-      if (prev) URL.revokeObjectURL(prev.url);
+      if (prev && (prev.type === "image" || prev.type === "pdf")) URL.revokeObjectURL(prev.url);
       return null;
     });
   }
@@ -786,7 +808,12 @@ export function Dashboard() {
                       <div className="divide-y divide-border">
                         {files.map((file) => {
                           const isViewable = file.itemType === "file" && (
-                            file.mimeType?.startsWith("image/") || file.mimeType === "application/pdf"
+                            file.mimeType?.startsWith("image/") ||
+                            file.mimeType?.startsWith("text/") ||
+                            file.mimeType === "application/pdf" ||
+                            file.mimeType === "application/json" ||
+                            file.mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+                            file.mimeType === "application/vnd.ms-excel"
                           );
                           return (
                             <div
@@ -932,19 +959,30 @@ export function Dashboard() {
                 <X size={16} aria-hidden="true" />
               </button>
             </div>
-            <div className="flex flex-1 items-center justify-center overflow-auto bg-muted/20">
-              {previewState.type === "image" ? (
+            <div className="flex flex-1 overflow-auto bg-muted/20">
+              {previewState.type === "image" && (
                 <img
                   src={previewState.url}
                   alt={previewState.name}
-                  className="max-h-[80vh] max-w-full object-contain p-4"
+                  className="m-auto max-h-[80vh] max-w-full object-contain p-4"
                 />
-              ) : (
+              )}
+              {previewState.type === "pdf" && (
                 <iframe
                   src={previewState.url}
                   title={previewState.name}
                   className="h-[80vh] w-full"
                 />
+              )}
+              {previewState.type === "text" && (
+                <pre className="h-[80vh] w-full overflow-auto p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words">
+                  {previewState.content}
+                </pre>
+              )}
+              {previewState.type === "spreadsheet" && (
+                <div className="h-[80vh] w-full overflow-auto p-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_td]:text-sm [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:px-2 [&_th]:py-1 [&_th]:text-sm [&_th]:font-medium">
+                  <div dangerouslySetInnerHTML={{ __html: previewState.html }} />
+                </div>
               )}
             </div>
           </div>
