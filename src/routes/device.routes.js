@@ -15,6 +15,9 @@ deviceRouter.get("/", deviceController.listDevicesController);
 // Desktop app calls this when folder size/limit changes after initial setup.
 deviceRouter.patch("/:deviceId/storage", deviceController.updateDeviceStorageController);
 
+// Website calls this to search files by name across a device.
+deviceRouter.get("/:deviceId/files/search", fileController.searchDeviceFilesController);
+
 // Website calls this to browse indexed files for a connected PC.
 deviceRouter.get("/:deviceId/files", fileController.listDeviceFilesController);
 

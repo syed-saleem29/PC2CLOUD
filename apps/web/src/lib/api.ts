@@ -155,6 +155,11 @@ export function getViewUrl(deviceId: string, filePath: string) {
   return `${API_URL}/api/devices/${deviceId}/download?${params.toString()}`;
 }
 
+export function searchDeviceFiles(deviceId: string, query: string) {
+  const params = new URLSearchParams({ q: query });
+  return request<{ files: CloudFile[] }>(`/api/devices/${deviceId}/files/search?${params.toString()}`);
+}
+
 export function createPreviewFileIndex(deviceId: string) {
   return request<{ message: string; syncedCount: number }>(
     `/api/devices/${deviceId}/files/preview`,

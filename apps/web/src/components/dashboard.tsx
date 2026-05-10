@@ -17,6 +17,7 @@ import {
   Pencil,
   Plus,
   RefreshCcw,
+  Search,
   ShieldCheck,
   Trash2,
   Upload,
@@ -39,6 +40,7 @@ import {
   getDownloadUrl,
   getViewUrl,
   logoutUser,
+  searchDeviceFiles,
   unlinkDevice,
   updateDeviceName,
 } from "@/lib/api";
@@ -114,6 +116,9 @@ export function Dashboard() {
   const [previewLoadingFile, setPreviewLoadingFile] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [newFolderName, setNewFolderName] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CloudFile[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const selectedDeviceIdRef = useRef<string | null>(null);
   const selectedPathRef = useRef<string>("/");
@@ -187,6 +192,27 @@ export function Dashboard() {
   // Keep refs in sync so the polling interval can read the latest values without restarting
   useEffect(() => { selectedDeviceIdRef.current = selectedDeviceId; }, [selectedDeviceId]);
   useEffect(() => { selectedPathRef.current = selectedPath; }, [selectedPath]);
+
+  // Debounced search — fires 400 ms after the query stops changing
+  useEffect(() => {
+    if (!selectedDevice || !searchQuery.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const data = await searchDeviceFiles(selectedDevice.deviceId, searchQuery.trim());
+        setSearchResults(data.files);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, selectedDevice]);
 
   // Poll every 10 s — refresh devices AND currently viewed file list
   useEffect(() => {
@@ -302,6 +328,8 @@ export function Dashboard() {
   async function openDeviceStorage(device: Device, path = "/") {
     setSelectedDeviceId(device.deviceId);
     setActiveSection("storage");
+    setSearchQuery("");
+    setSearchResults(null);
     setIsLoading(true);
     try {
       const data = await getDeviceFiles(device.deviceId, path);
@@ -837,26 +865,43 @@ export function Dashboard() {
               <div className="flex-1 p-6">
                 {/* Toolbar */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  {/* Breadcrumb */}
-                  <nav className="flex items-center gap-1 text-sm">
-                    {breadcrumbs.map((crumb, i) => (
-                      <span key={crumb.path} className="flex items-center gap-1">
-                        {i > 0 && <ChevronRight size={14} className="text-muted-foreground" aria-hidden="true" />}
-                        {i < breadcrumbs.length - 1 ? (
-                          <button
-                            onClick={() => openDeviceStorage(selectedDevice, crumb.path)}
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            {crumb.label}
-                          </button>
-                        ) : (
-                          <span className="font-medium">{crumb.label}</span>
-                        )}
-                      </span>
-                    ))}
-                  </nav>
+                  {/* Breadcrumb — hidden while searching */}
+                  {!searchQuery ? (
+                    <nav className="flex items-center gap-1 text-sm">
+                      {breadcrumbs.map((crumb, i) => (
+                        <span key={crumb.path} className="flex items-center gap-1">
+                          {i > 0 && <ChevronRight size={14} className="text-muted-foreground" aria-hidden="true" />}
+                          {i < breadcrumbs.length - 1 ? (
+                            <button
+                              onClick={() => openDeviceStorage(selectedDevice, crumb.path)}
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              {crumb.label}
+                            </button>
+                          ) : (
+                            <span className="font-medium">{crumb.label}</span>
+                          )}
+                        </span>
+                      ))}
+                    </nav>
+                  ) : (
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {isSearching ? "Searching…" : `${searchResults?.length ?? 0} result${searchResults?.length === 1 ? "" : "s"} for "${searchQuery}"`}
+                    </p>
+                  )}
 
                   <div className="flex gap-2">
+                    {/* Search input */}
+                    <div className="relative flex items-center">
+                      <Search size={14} className="pointer-events-none absolute left-3 text-muted-foreground" aria-hidden="true" />
+                      <input
+                        type="search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search files…"
+                        className="h-9 w-44 rounded-md border border-border bg-white pl-8 pr-3 text-sm outline-none focus:border-primary focus:w-60 transition-all"
+                      />
+                    </div>
                     <button
                       onClick={() => openDeviceStorage(selectedDevice, selectedPath)}
                       disabled={isLoading}
@@ -930,103 +975,130 @@ export function Dashboard() {
 
                 {/* File table */}
                 <div className="mt-4 overflow-hidden rounded-md border border-border bg-white">
-                  {files.length === 0 ? (
-                    <div className="p-10 text-center">
-                      <FolderOpen className="mx-auto text-muted-foreground" size={36} aria-hidden="true" />
-                      <p className="mt-3 font-medium">No files indexed</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Click &quot;Index files&quot; to populate this folder.
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-[1fr_110px_160px_112px] border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
-                        <span>Name</span>
-                        <span>Size</span>
-                        <span>Modified</span>
-                        <span />
-                      </div>
-                      <div className="divide-y divide-border">
-                        {files.map((file) => {
-                          const isViewable = file.itemType === "file" && (
-                            file.mimeType?.startsWith("image/") ||
-                            file.mimeType?.startsWith("text/") ||
-                            file.mimeType === "application/pdf" ||
-                            file.mimeType === "application/json" ||
-                            file.mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-                            file.mimeType === "application/vnd.ms-excel"
-                          );
-                          return (
-                            <div
-                              key={file.id}
-                              onClick={() => {
-                                if (file.itemType === "folder") {
-                                  openDeviceStorage(selectedDevice, file.filePath);
-                                }
-                              }}
-                              className={`grid grid-cols-[1fr_110px_160px_112px] items-center px-4 py-3 text-sm ${
-                                file.itemType === "folder"
-                                  ? "cursor-pointer hover:bg-muted/30"
-                                  : "hover:bg-muted/10"
-                              }`}
-                            >
-                              <div className="flex min-w-0 items-center gap-3">
-                                <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                                  {file.itemType === "folder" ? (
-                                    <FolderOpen size={16} aria-hidden="true" />
-                                  ) : (
-                                    <FileText size={16} aria-hidden="true" />
-                                  )}
+                  {(() => {
+                    const displayFiles = searchResults ?? files;
+                    const isEmpty = displayFiles.length === 0;
+
+                    if (isSearching) {
+                      return (
+                        <div className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground">
+                          <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+                          Searching…
+                        </div>
+                      );
+                    }
+
+                    if (isEmpty) {
+                      return (
+                        <div className="p-10 text-center">
+                          <FolderOpen className="mx-auto text-muted-foreground" size={36} aria-hidden="true" />
+                          <p className="mt-3 font-medium">
+                            {searchResults !== null ? "No files found" : "This folder is empty"}
+                          </p>
+                          {searchResults !== null && (
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              Try a different search term.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-[1fr_110px_160px_112px] border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
+                          <span>Name</span>
+                          <span>Size</span>
+                          <span>Modified</span>
+                          <span />
+                        </div>
+                        <div className="divide-y divide-border">
+                          {displayFiles.map((file) => {
+                            const isViewable = file.itemType === "file" && (
+                              file.mimeType?.startsWith("image/") ||
+                              file.mimeType?.startsWith("text/") ||
+                              file.mimeType === "application/pdf" ||
+                              file.mimeType === "application/json" ||
+                              file.mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+                              file.mimeType === "application/vnd.ms-excel"
+                            );
+                            return (
+                              <div
+                                key={file.id}
+                                onClick={() => {
+                                  if (file.itemType === "folder") {
+                                    openDeviceStorage(selectedDevice, file.filePath);
+                                  }
+                                }}
+                                className={`grid grid-cols-[1fr_110px_160px_112px] items-center px-4 py-3 text-sm ${
+                                  file.itemType === "folder"
+                                    ? "cursor-pointer hover:bg-muted/30"
+                                    : "hover:bg-muted/10"
+                                }`}
+                              >
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                                    {file.itemType === "folder" ? (
+                                      <FolderOpen size={16} aria-hidden="true" />
+                                    ) : (
+                                      <FileText size={16} aria-hidden="true" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="truncate font-medium">{file.fileName}</p>
+                                    {searchResults !== null && (
+                                      <p className="truncate text-xs text-muted-foreground">{file.parentPath}</p>
+                                    )}
+                                  </div>
                                 </div>
-                                <span className="truncate font-medium">{file.fileName}</span>
+                                <span className="text-muted-foreground">
+                                  {file.itemType === "folder" ? "—" : formatBytes(file.sizeBytes)}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {formatDate(file.modifiedAt)}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  {isViewable && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handlePreview(file); }}
+                                      disabled={previewLoadingFile === file.id}
+                                      title="Preview"
+                                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                                    >
+                                      {previewLoadingFile === file.id
+                                        ? <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+                                        : <Eye size={15} aria-hidden="true" />}
+                                    </button>
+                                  )}
+                                  {file.itemType === "file" && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleDownload(file); }}
+                                      title="Download"
+                                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    >
+                                      <ArrowDownToLine size={15} aria-hidden="true" />
+                                    </button>
+                                  )}
+                                  {file.itemType === "file" && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleDeleteFile(file); }}
+                                      title="Delete"
+                                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                                    >
+                                      <Trash2 size={15} aria-hidden="true" />
+                                    </button>
+                                  )}
+                                </span>
                               </div>
-                              <span className="text-muted-foreground">
-                                {file.itemType === "folder" ? "—" : formatBytes(file.sizeBytes)}
-                              </span>
-                              <span className="text-muted-foreground">
-                                {formatDate(file.modifiedAt)}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                {isViewable && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); handlePreview(file); }}
-                                    disabled={previewLoadingFile === file.id}
-                                    title="Preview"
-                                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                                  >
-                                    {previewLoadingFile === file.id
-                                      ? <Loader2 size={15} className="animate-spin" aria-hidden="true" />
-                                      : <Eye size={15} aria-hidden="true" />}
-                                  </button>
-                                )}
-                                {file.itemType === "file" && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); handleDownload(file); }}
-                                    title="Download"
-                                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                                  >
-                                    <ArrowDownToLine size={15} aria-hidden="true" />
-                                  </button>
-                                )}
-                                {file.itemType === "file" && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteFile(file); }}
-                                    title="Delete"
-                                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600"
-                                  >
-                                    <Trash2 size={15} aria-hidden="true" />
-                                  </button>
-                                )}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
+                            );
+                          })}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}

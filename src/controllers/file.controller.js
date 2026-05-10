@@ -227,10 +227,34 @@ async function deleteFileController(req, res) {
   res.status(200).json({ message: "File deleted" });
 }
 
+async function searchDeviceFilesController(req, res) {
+  const { deviceId } = req.params;
+  const { q } = req.query;
+
+  if (!q || !q.trim()) {
+    return res.status(400).json({ message: "Query parameter q is required" });
+  }
+
+  const device = await findOwnedDevice(req.user._id, deviceId);
+  if (!device) return res.status(404).json({ message: "Device not found" });
+
+  const files = await fileModel
+    .find({
+      user: req.user._id,
+      deviceId,
+      fileName: { $regex: q.trim(), $options: "i" },
+    })
+    .sort({ itemType: 1, fileName: 1 })
+    .limit(100);
+
+  res.status(200).json({ files: files.map(formatFile) });
+}
+
 module.exports = {
   listDeviceFilesController,
   syncDeviceFilesController,
   createPreviewFilesController,
   deleteFileController,
   mkdirController,
+  searchDeviceFilesController,
 };
