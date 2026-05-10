@@ -13,6 +13,8 @@ yarn-debug.log*
 .env.*
 
 # Build and Coverage
+.next/
+apps/web/.next/
 build/Release
 dist/
 coverage/

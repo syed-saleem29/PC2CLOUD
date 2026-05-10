@@ -5,7 +5,12 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "npx nodemon server.js"
+    "dev": "npx nodemon server.js",
+    "web:dev": "npm run dev --prefix apps/web",
+    "web:build": "npm run build --prefix apps/web",
+    "web:typecheck": "npm run typecheck --prefix apps/web",
+    "desktop:dev": "npm run dev --prefix apps/desktop",
+    "desktop:build": "npm run build --prefix apps/desktop"
   },
   "repository": {
     "type": "git",
@@ -22,9 +27,11 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.3.3"
+    "mongoose": "^9.3.3",
+    "socket.io": "^4.8.3"
   }
 }

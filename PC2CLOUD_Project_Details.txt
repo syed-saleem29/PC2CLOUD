@@ -1,0 +1,514 @@
+
+PC2CLOUD — COMPLETE PROJECT OVERVIEW
+====================================
+
+PROJECT IDEA
+============
+
+PC2CLOUD is a platform that converts a normal personal computer into a private cloud storage and remote access server.
+
+Users install a desktop client on their PC, connect it to their account, and then access files remotely through a web dashboard or another device.
+
+Instead of storing files on expensive third-party cloud servers, files remain on the user's own computer while the platform handles:
+
+- Authentication
+- Device management
+- Secure encrypted communication
+- File metadata
+- Remote access connectivity
+- Optional relay services
+
+The system works similarly to:
+- Personal NAS
+- Google Drive (private version)
+- Remote file access platform
+
+Main advantages:
+- Privacy-focused
+- Lower storage costs
+- Uses existing hardware
+- Scalable architecture
+- Suitable for students, offices, hospitals, freelancers, and small businesses
+
+
+FINAL TECH STACK
+================
+
+FRONTEND (WEB DASHBOARD)
+------------------------
+- Next.js
+- TypeScript
+- Tailwind CSS
+- ShadCN UI
+
+Purpose:
+- User login/signup
+- Device management
+- File browser
+- Storage statistics
+- Sync monitoring
+- Settings panel
+
+
+BACKEND
+-------
+- Node.js
+- Express.js
+- Socket.IO
+
+Responsibilities:
+- Authentication
+- Device registration
+- REST APIs
+- WebSocket communication
+- File metadata
+- Session management
+- Signaling server for P2P connections
+
+
+DESKTOP CLIENT
+--------------
+- Electron
+- React
+- TypeScript
+
+Responsibilities:
+- Folder monitoring
+- File synchronization
+- Background service
+- Auto-start on Windows
+- File upload/download
+- Encryption handling
+- Remote connection handling
+
+
+DATABASE
+--------
+Initially:
+- MongoDB
+
+Future Option:
+- PostgreSQL
+
+Stores:
+- Users
+- Devices
+- Sessions
+- File metadata
+- Subscription data
+- Activity logs
+
+
+REALTIME COMMUNICATION
+======================
+- Socket.IO
+- WebSockets
+
+Used for:
+- Device online/offline updates
+- Live sync updates
+- Signaling for WebRTC
+- Notifications
+- Remote session management
+
+
+P2P CONNECTION SYSTEM
+=====================
+
+Technology:
+- WebRTC
+
+Purpose:
+- Direct encrypted file transfer
+- Remote access connection
+- Reduce server bandwidth usage
+
+Connection Flow:
+User Device A
+    ->
+Signaling Server
+    ->
+User Device B
+
+After handshake:
+Direct encrypted connection established.
+
+Fallback:
+If direct connection fails:
+Relay server mode will be used.
+
+
+FILE MONITORING
+===============
+Library:
+- chokidar
+
+Purpose:
+- Detect file creation
+- Detect modifications
+- Detect deletions
+- Detect renaming
+- Trigger synchronization
+
+
+AUTHENTICATION SYSTEM
+=====================
+- JWT Tokens
+- Refresh Tokens
+- bcrypt password hashing
+
+Future additions:
+- Google Login
+- Two Factor Authentication
+- OTP Verification
+
+
+SECURITY FEATURES
+=================
+- TLS encryption
+- End-to-end encrypted transfer
+- Device authorization
+- Signed requests
+- Rate limiting
+- Session validation
+- Secure token handling
+
+
+DEPLOYMENT
+==========
+
+SERVER HOSTING
+--------------
+Use:
+- Ubuntu VPS Server
+
+Recommended providers:
+- DigitalOcean
+- Hetzner
+- Linode
+- Vultr
+
+Initial VPS Recommendation:
+- 2 CPU
+- 4 GB RAM
+- Ubuntu Linux
+
+Estimated cost:
+₹500–1500/month initially
+
+
+SERVER SOFTWARE
+---------------
+- Docker
+- Nginx
+- PM2
+- SSL Certificates
+
+
+WHY NODE.JS OVER PYTHON
+=======================
+
+Node.js is preferred for this project because:
+
+1. Same language everywhere
+   - Frontend
+   - Backend
+   - Desktop app
+
+2. Excellent realtime support
+   - WebSockets
+   - Socket.IO
+   - Streaming
+
+3. Electron uses Node.js internally
+
+4. Better ecosystem for:
+   - File streaming
+   - WebRTC
+   - Desktop integration
+   - Async networking
+
+5. Faster development speed
+
+6. Easier debugging and maintenance
+
+
+PROJECT ARCHITECTURE
+====================
+
+Next.js Dashboard
+        |
+        v
+Node.js Backend + Socket.IO
+        |
+        v
+MongoDB
+        |
+        v
+Electron Desktop Client
+
+
+MONOREPO STRUCTURE
+==================
+
+pc2cloud/
+|
+|-- apps/
+|    |-- web/
+|    |-- server/
+|    |-- desktop/
+|
+|-- shared/
+     |-- types/
+     |-- utils/
+     |-- constants/
+
+
+MAIN SYSTEM FLOW
+================
+
+1. User creates account
+2. Desktop client logs in
+3. Device registers with server
+4. Server stores device details
+5. Dashboard displays online device
+6. User accesses files remotely
+7. Files transfer through:
+   - P2P connection
+   OR
+   - Relay server fallback
+
+
+DEVICE REGISTRATION FLOW
+========================
+
+Each user gets:
+- User ID
+- Device ID
+- Authentication token
+
+Server stores:
+- device_id
+- user_id
+- public_key
+- last_seen
+- device_status
+- IP metadata
+
+
+MVP FEATURES
+=============
+
+PHASE 1 FEATURES
+----------------
+- User authentication
+- Desktop login
+- Device registration
+- Online/offline status
+- Dashboard
+
+PHASE 2 FEATURES
+----------------
+- File upload/download
+- Folder selection
+- File sync
+- Chunked transfers
+- Progress tracking
+
+PHASE 3 FEATURES
+----------------
+- WebRTC P2P connection
+- NAT traversal
+- Encrypted transfers
+
+PHASE 4 FEATURES
+----------------
+- Real-time sync
+- Conflict resolution
+- Resumable transfers
+
+PHASE 5 FEATURES
+----------------
+- Subscriptions
+- Admin panel
+- Analytics
+- Multi-device sync
+- Mobile app
+
+
+DEVELOPMENT ROADMAP
+===================
+
+PHASE 1 — FOUNDATION
+--------------------
+Goal:
+Basic authentication and device connectivity
+
+Build:
+- Backend authentication
+- MongoDB integration
+- Desktop login
+- Device registration
+- Socket.IO connection
+
+Expected Duration:
+2–3 weeks
+
+
+PHASE 2 — FILE SYSTEM
+---------------------
+Build:
+- Folder selection
+- Upload/download
+- File metadata
+- Chunked transfer engine
+
+Expected Duration:
+3–4 weeks
+
+
+PHASE 3 — REMOTE CONNECTION
+---------------------------
+Build:
+- WebRTC integration
+- STUN/TURN support
+- Secure direct transfer
+
+Expected Duration:
+3–5 weeks
+
+
+PHASE 4 — SYNC ENGINE
+---------------------
+Build:
+- Real-time synchronization
+- Conflict handling
+- Resume support
+
+Expected Duration:
+4–6 weeks
+
+
+PHASE 5 — PRODUCTION
+--------------------
+Build:
+- Payment system
+- Admin dashboard
+- Monitoring
+- Analytics
+- Team features
+
+
+MOST IMPORTANT MVP STRATEGY
+===========================
+
+DO NOT START WITH:
+- AI features
+- Blockchain
+- Linux/macOS support
+- Distributed storage
+- Complex streaming
+- Mobile apps
+
+START WITH:
+- Windows support only
+- Single device support
+- Basic remote access
+- Simple sync engine
+
+Focus on building a working MVP quickly.
+
+
+BIGGEST TECHNICAL CHALLENGES
+============================
+
+1. NAT Traversal
+   - Hardest networking component
+   - Solved using STUN/TURN servers
+
+2. File Sync Conflicts
+   - Same file edited in multiple places
+   - Requires version tracking
+
+3. Large File Transfers
+   - Requires chunk uploads
+   - Resume support
+   - Hash verification
+
+4. Secure Connectivity
+   - End-to-end encryption
+   - Token validation
+   - Secure sessions
+
+
+FIRST DEVELOPMENT TARGET
+========================
+
+Build this flow FIRST:
+
+Desktop App Login
+    ->
+Server Authentication
+    ->
+Device Registration
+    ->
+Device Appears Online
+    ->
+Dashboard Displays Device
+
+Once this works:
+The foundation architecture is complete.
+
+
+FUTURE MONETIZATION
+===================
+
+Free Plan:
+- 1 device
+- Limited transfer speed
+
+Paid Plans:
+- Multiple devices
+- Relay acceleration
+- Cloud backup
+- Team sharing
+- Priority sync
+
+
+FINAL RECOMMENDED STACK
+=======================
+
+Frontend:
+- Next.js
+- TypeScript
+- Tailwind CSS
+
+Backend:
+- Node.js
+- Express.js
+- Socket.IO
+
+Desktop:
+- Electron
+- React
+
+Database:
+- MongoDB
+
+Deployment:
+- Docker
+- Ubuntu VPS
+- Nginx
+
+Realtime:
+- WebSockets
+- Socket.IO
+
+P2P:
+- WebRTC
+
+File Monitoring:
+- chokidar
+
+
+END OF DOCUMENT
