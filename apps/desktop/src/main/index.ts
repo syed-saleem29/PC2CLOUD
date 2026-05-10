@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } from "electron";
-import { join } from "path";
+import { join, dirname } from "path";
 import fs from "fs";
 import checkDiskSpace from "check-disk-space";
 
@@ -42,13 +42,29 @@ function createTray(): void {
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
   tray.setToolTip("PC2CLOUD");
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: "Open PC2CLOUD", click: () => mainWindow?.show() },
-      { type: "separator" },
-      { label: "Quit", click: () => { tray = null; app.quit(); } },
-    ]),
-  );
+
+  function rebuildTrayMenu() {
+    const launchAtStartup = app.getLoginItemSettings().openAtLogin;
+    tray?.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: "Open PC2CLOUD", click: () => mainWindow?.show() },
+        { type: "separator" },
+        {
+          label: "Launch at startup",
+          type: "checkbox",
+          checked: launchAtStartup,
+          click: () => {
+            app.setLoginItemSettings({ openAtLogin: !launchAtStartup });
+            rebuildTrayMenu();
+          },
+        },
+        { type: "separator" },
+        { label: "Quit", click: () => { tray = null; app.quit(); } },
+      ]),
+    );
+  }
+
+  rebuildTrayMenu();
   tray.on("double-click", () => mainWindow?.show());
 }
 
@@ -201,6 +217,15 @@ ipcMain.handle("file:read", async (_, absolutePath: string) => {
   const data = fs.readFileSync(absolutePath);
   const fileName = absolutePath.split(/[/\\]/).pop() ?? "download";
   return { data, fileName, mimeType: getMimeType(fileName) };
+});
+
+ipcMain.handle("file:write", (_, absolutePath: string, data: Uint8Array) => {
+  fs.mkdirSync(dirname(absolutePath), { recursive: true });
+  fs.writeFileSync(absolutePath, Buffer.from(data));
+});
+
+ipcMain.handle("file:delete", (_, absolutePath: string) => {
+  if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
 });
 
 ipcMain.handle("storage:get-info", async (_, folderPath: string) => {

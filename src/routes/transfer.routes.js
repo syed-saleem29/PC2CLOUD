@@ -42,4 +42,44 @@ transferRouter.post("/:requestId/error", express.json(), (req, res) => {
   res.status(200).json({ ok: true });
 });
 
+// Desktop fetches the buffered upload bytes.
+transferRouter.get("/:requestId/content", (req, res) => {
+  const pending = realtime.pendingUploads.get(req.params.requestId);
+  if (!pending) return res.status(404).json({ message: "Upload not found" });
+
+  res.setHeader("Content-Type", "application/octet-stream");
+  res.setHeader("Content-Length", pending.buffer.length);
+  res.end(pending.buffer);
+});
+
+// Desktop confirms it wrote the file successfully.
+transferRouter.post("/:requestId/write-done", express.json(), (req, res) => {
+  const pending = realtime.pendingUploads.get(req.params.requestId);
+  if (!pending) return res.status(404).json({ message: "Upload not found" });
+
+  clearTimeout(pending.timeout);
+  realtime.pendingUploads.delete(req.params.requestId);
+
+  if (!pending.res.headersSent) {
+    pending.res.status(200).json({ message: "File uploaded successfully" });
+  }
+
+  res.status(200).json({ ok: true });
+});
+
+// Desktop reports it could not write the file.
+transferRouter.post("/:requestId/write-error", express.json(), (req, res) => {
+  const pending = realtime.pendingUploads.get(req.params.requestId);
+  if (!pending) return res.status(404).json({ message: "Upload not found" });
+
+  clearTimeout(pending.timeout);
+  realtime.pendingUploads.delete(req.params.requestId);
+
+  if (!pending.res.headersSent) {
+    pending.res.status(502).json({ message: req.body?.message || "Device could not write file" });
+  }
+
+  res.status(200).json({ ok: true });
+});
+
 module.exports = transferRouter;

@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   FolderOpen,
+  FolderPlus,
   HardDrive,
   Loader2,
   LogIn,
@@ -18,17 +19,20 @@ import {
   RefreshCcw,
   ShieldCheck,
   Trash2,
+  Upload,
   UserPlus,
   X,
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import {
+  ApiError,
   AuthMode,
   CloudFile,
   Device,
   authenticateUser,
-  createPreviewFileIndex,
+  createFolder,
+  deleteFile,
   getCurrentUser,
   getDeviceFiles,
   getDevices,
@@ -108,9 +112,12 @@ export function Dashboard() {
     | null
   >(null);
   const [previewLoadingFile, setPreviewLoadingFile] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [newFolderName, setNewFolderName] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const selectedDeviceIdRef = useRef<string | null>(null);
   const selectedPathRef = useRef<string>("/");
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7000";
 
@@ -138,6 +145,20 @@ export function Dashboard() {
   function showToast(msg: string) {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(""), 3000);
+  }
+
+  function handleApiError(error: unknown): boolean {
+    if (error instanceof ApiError && error.status === 401) {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      setUser(null);
+      setIsAuthenticated(false);
+      setDevices([]);
+      setFiles([]);
+      setSelectedDeviceId(null);
+      return true;
+    }
+    return false;
   }
 
   // Initial auth check
@@ -178,7 +199,9 @@ export function Dashboard() {
           const f = await getDeviceFiles(selectedDeviceIdRef.current, selectedPathRef.current);
           setFiles(f.files);
         }
-      } catch { /* ignore */ }
+      } catch (error) {
+        handleApiError(error);
+      }
     }, 10_000);
     return () => clearInterval(id);
   }, [isAuthenticated]);
@@ -188,8 +211,9 @@ export function Dashboard() {
     try {
       const data = await getDevices();
       setDevices(data.devices);
-    } catch { /* ignore */ }
-    finally { setIsLoading(false); }
+    } catch (error) {
+      handleApiError(error);
+    } finally { setIsLoading(false); }
   }
 
   async function handleAuth(event: React.BaseSyntheticEvent) {
@@ -290,21 +314,6 @@ export function Dashboard() {
     }
   }
 
-  async function handleIndexFiles() {
-    if (!selectedDevice) return;
-    setIsLoading(true);
-    try {
-      await createPreviewFileIndex(selectedDevice.deviceId);
-      const data = await getDeviceFiles(selectedDevice.deviceId, selectedPath);
-      setFiles(data.files);
-      showToast("File index ready.");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not index files");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   async function handleDownload(file: CloudFile) {
     if (!selectedDevice) return;
     if (selectedDevice.status !== "online") {
@@ -379,6 +388,86 @@ export function Dashboard() {
       if (prev && (prev.type === "image" || prev.type === "pdf")) URL.revokeObjectURL(prev.url);
       return null;
     });
+  }
+
+  async function handleDeleteFile(file: CloudFile) {
+    if (!selectedDevice) return;
+    if (!window.confirm(`Delete "${file.fileName}" from your PC? This cannot be undone.`)) return;
+    try {
+      await deleteFile(selectedDevice.deviceId, file.filePath);
+      setFiles((prev) => prev.filter((f) => f.id !== file.id));
+    } catch (error) {
+      if (!handleApiError(error)) showToast(error instanceof Error ? error.message : "Could not delete file");
+    }
+  }
+
+  async function handleUpload(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !selectedDevice) return;
+    if (selectedDevice.status !== "online") {
+      showToast("Device is offline — cannot upload files right now.");
+      return;
+    }
+    setIsUploading(true);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7000";
+    let uploaded = 0;
+    for (const file of Array.from(fileList)) {
+      const destPath = selectedPath === "/" ? `/${file.name}` : `${selectedPath}/${file.name}`;
+      try {
+        const res = await fetch(
+          `${API_URL}/api/devices/${selectedDevice.deviceId}/upload?path=${encodeURIComponent(destPath)}`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": file.type || "application/octet-stream",
+              "x-file-name": encodeURIComponent(file.name),
+            },
+            body: file,
+          },
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(`${file.name}: ${(data as { message?: string }).message || "Upload failed"}`);
+        } else {
+          uploaded++;
+        }
+      } catch {
+        showToast(`${file.name}: Upload failed`);
+      }
+    }
+    setIsUploading(false);
+    if (uploadInputRef.current) uploadInputRef.current.value = "";
+    if (uploaded > 0) {
+      showToast(`${uploaded} file${uploaded > 1 ? "s" : ""} uploaded`);
+      const data = await getDeviceFiles(selectedDevice.deviceId, selectedPath).catch(() => null);
+      if (data) setFiles(data.files);
+    }
+  }
+
+  async function handleCreateFolder(e: React.BaseSyntheticEvent) {
+    e.preventDefault();
+    if (!selectedDevice || !newFolderName?.trim()) return;
+    const name = newFolderName.trim();
+    const folderPath = selectedPath === "/" ? `/${name}` : `${selectedPath}/${name}`;
+    try {
+      await createFolder(selectedDevice.deviceId, folderPath);
+      setNewFolderName(null);
+      setFiles((prev) => [
+        ...prev,
+        {
+          id: `temp-${Date.now()}`,
+          fileName: name,
+          filePath: folderPath,
+          parentPath: selectedPath,
+          itemType: "folder" as const,
+          sizeBytes: 0,
+          mimeType: null,
+          modifiedAt: new Date().toISOString(),
+        },
+      ]);
+    } catch (error) {
+      if (!handleApiError(error)) showToast(error instanceof Error ? error.message : "Could not create folder");
+    }
   }
 
   // ── Auth screen ──────────────────────────────────────────────────────────────
@@ -777,15 +866,67 @@ export function Dashboard() {
                       Refresh
                     </button>
                     <button
-                      onClick={handleIndexFiles}
-                      disabled={isLoading}
-                      className="flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                      onClick={() => uploadInputRef.current?.click()}
+                      disabled={isUploading || selectedDevice.status !== "online"}
+                      className="flex h-9 items-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-medium disabled:opacity-50"
                     >
-                      <FileText size={14} aria-hidden="true" />
-                      Index files
+                      {isUploading
+                        ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                        : <Upload size={14} aria-hidden="true" />}
+                      {isUploading ? "Uploading…" : "Upload"}
+                    </button>
+                    <input
+                      ref={uploadInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleUpload(e.target.files)}
+                    />
+                    <button
+                      onClick={() => setNewFolderName("")}
+                      disabled={selectedDevice.status !== "online"}
+                      className="flex h-9 items-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-medium disabled:opacity-50"
+                    >
+                      <FolderPlus size={14} aria-hidden="true" />
+                      New Folder
                     </button>
                   </div>
                 </div>
+
+                {/* New folder inline form */}
+                {newFolderName !== null && (
+                  <form
+                    onSubmit={handleCreateFolder}
+                    className="mt-3 flex items-center gap-2"
+                  >
+                    <div className="flex flex-1 items-center gap-2 rounded-md border border-primary bg-white px-3">
+                      <FolderPlus size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                      <input
+                        autoFocus
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        placeholder="Folder name"
+                        className="h-9 flex-1 bg-transparent text-sm outline-none"
+                        onKeyDown={(e) => e.key === "Escape" && setNewFolderName(null)}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={!newFolderName.trim()}
+                      className="flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                    >
+                      <Check size={14} aria-hidden="true" />
+                      Create
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewFolderName(null)}
+                      className="flex h-9 items-center px-3 text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                )}
 
                 {/* File table */}
                 <div className="mt-4 overflow-hidden rounded-md border border-border bg-white">
@@ -799,7 +940,7 @@ export function Dashboard() {
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-[1fr_110px_160px_80px] border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
+                      <div className="grid grid-cols-[1fr_110px_160px_112px] border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
                         <span>Name</span>
                         <span>Size</span>
                         <span>Modified</span>
@@ -823,7 +964,7 @@ export function Dashboard() {
                                   openDeviceStorage(selectedDevice, file.filePath);
                                 }
                               }}
-                              className={`grid grid-cols-[1fr_110px_160px_80px] items-center px-4 py-3 text-sm ${
+                              className={`grid grid-cols-[1fr_110px_160px_112px] items-center px-4 py-3 text-sm ${
                                 file.itemType === "folder"
                                   ? "cursor-pointer hover:bg-muted/30"
                                   : "hover:bg-muted/10"
@@ -867,6 +1008,16 @@ export function Dashboard() {
                                     className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                                   >
                                     <ArrowDownToLine size={15} aria-hidden="true" />
+                                  </button>
+                                )}
+                                {file.itemType === "file" && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteFile(file); }}
+                                    title="Delete"
+                                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                                  >
+                                    <Trash2 size={15} aria-hidden="true" />
                                   </button>
                                 )}
                               </span>

@@ -287,6 +287,38 @@ async function downloadFileController(req, res) {
   }
 }
 
+async function uploadFileController(req, res) {
+  const { deviceId } = req.params;
+  const filePath = req.query.path;
+
+  if (!filePath) {
+    return res.status(400).json({ message: "path query parameter is required" });
+  }
+
+  const device = await deviceModel.findOne({ user: req.user._id, deviceId });
+  if (!device) return res.status(404).json({ message: "Device not found" });
+  if (device.status !== "online") return res.status(503).json({ message: "Device is offline" });
+
+  const requestId = crypto.randomUUID();
+  const buffer = req.body;
+
+  const timeout = setTimeout(() => {
+    realtime.pendingUploads.delete(requestId);
+    if (!res.headersSent) {
+      res.status(504).json({ message: "Device did not respond in time" });
+    }
+  }, 60_000);
+
+  realtime.pendingUploads.set(requestId, { buffer, res, timeout });
+
+  const delivered = realtime.emitToDevice(deviceId, "file:upload", { requestId, filePath });
+  if (!delivered) {
+    clearTimeout(timeout);
+    realtime.pendingUploads.delete(requestId);
+    return res.status(503).json({ message: "Device socket not connected" });
+  }
+}
+
 module.exports = {
   registerDeviceController,
   updateDeviceStorageController,
@@ -294,4 +326,5 @@ module.exports = {
   heartbeatDeviceController,
   unlinkDeviceController,
   downloadFileController,
+  uploadFileController,
 };

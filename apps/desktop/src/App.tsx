@@ -30,6 +30,13 @@ export default function App() {
 
     socket.on("connect", () => socket.emit("device:online", { deviceId }));
 
+    socket.on("connect_error", (err) => {
+      if (err.message === "Authentication required" || err.message.includes("authentication")) {
+        socket.disconnect();
+        handleDisconnect();
+      }
+    });
+
     socket.on("file:request", async ({ requestId, filePath }: { requestId: string; filePath: string }) => {
       const folder = folderPathRef.current;
       if (!folder) {
@@ -66,6 +73,74 @@ export default function App() {
           body: JSON.stringify({ message: err instanceof Error ? err.message : "Could not read file" }),
         }).catch(() => {});
       }
+    });
+
+    socket.on("file:upload", async ({ requestId, filePath }: { requestId: string; filePath: string }) => {
+      const folder = folderPathRef.current;
+      const rejectUpload = (message: string) =>
+        fetch(`${API_URL}/api/transfer/${requestId}/write-error`, {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        }).catch(() => {});
+
+      if (!folder) { rejectUpload("Folder not configured on this device"); return; }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w = window as any;
+      const nodePath = w.require("path");
+      const fullPath: string = nodePath.join(folder, filePath);
+      const resolved: string = nodePath.resolve(fullPath);
+      const root: string = nodePath.resolve(folder);
+      if (!resolved.startsWith(root)) { rejectUpload("Access denied"); return; }
+
+      try {
+        const res = await fetch(`${API_URL}/api/transfer/${requestId}/content`, { credentials: "include" });
+        const arrayBuffer = await res.arrayBuffer();
+        // Write directly via Node.js fs — avoids Electron IPC size limits
+        const nodeFs = w.require("fs");
+        nodeFs.mkdirSync(nodePath.dirname(resolved), { recursive: true });
+        nodeFs.writeFileSync(resolved, Buffer.from(arrayBuffer));
+        await fetch(`${API_URL}/api/transfer/${requestId}/write-done`, {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ok: true }),
+        });
+      } catch (err) {
+        rejectUpload(err instanceof Error ? err.message : "Could not write file");
+      }
+    });
+
+    socket.on("folder:create", ({ folderPath }: { folderPath: string }) => {
+      const folder = folderPathRef.current;
+      if (!folder) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w = window as any;
+      const nodePath = w.require("path");
+      const fullPath: string = nodePath.join(folder, folderPath);
+      const resolved: string = nodePath.resolve(fullPath);
+      const root: string = nodePath.resolve(folder);
+      if (!resolved.startsWith(root)) return;
+      try {
+        w.require("fs").mkdirSync(resolved, { recursive: true });
+      } catch { /* ignore */ }
+    });
+
+    socket.on("file:delete", ({ filePath }: { filePath: string }) => {
+      const folder = folderPathRef.current;
+      if (!folder) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w = window as any;
+      const nodePath = w.require("path");
+      const fullPath: string = nodePath.join(folder, filePath);
+      const resolved: string = nodePath.resolve(fullPath);
+      const root: string = nodePath.resolve(folder);
+      if (!resolved.startsWith(root)) return;
+      // Delete directly via Node.js fs — no IPC round-trip needed
+      try {
+        const nodeFs = w.require("fs");
+        if (nodeFs.existsSync(resolved)) nodeFs.unlinkSync(resolved);
+      } catch { /* ignore — file may already be gone */ }
     });
 
     socketRef.current = socket;

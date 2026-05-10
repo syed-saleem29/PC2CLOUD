@@ -28,6 +28,13 @@ export type CloudFile = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7000";
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -41,7 +48,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.message || "Request failed");
+    throw new ApiError((data as { message?: string }).message || "Request failed", response.status);
   }
 
   return data as T;
@@ -122,6 +129,20 @@ export function getDeviceFiles(deviceId: string, path = "/") {
     path: string;
     files: CloudFile[];
   }>(`/api/devices/${deviceId}/files?${params.toString()}`);
+}
+
+export function createFolder(deviceId: string, folderPath: string) {
+  const params = new URLSearchParams({ path: folderPath });
+  return request<{ message: string }>(`/api/devices/${deviceId}/mkdir?${params.toString()}`, {
+    method: "POST",
+  });
+}
+
+export function deleteFile(deviceId: string, filePath: string) {
+  const params = new URLSearchParams({ path: filePath });
+  return request<{ message: string }>(`/api/devices/${deviceId}/files?${params.toString()}`, {
+    method: "DELETE",
+  });
 }
 
 export function getDownloadUrl(deviceId: string, filePath: string) {

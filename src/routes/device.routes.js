@@ -33,4 +33,13 @@ deviceRouter.delete("/:deviceId", deviceController.unlinkDeviceController);
 // Website calls this to download a file from the device via relay.
 deviceRouter.get("/:deviceId/download", deviceController.downloadFileController);
 
+// Website calls this to upload a file to the device via relay.
+deviceRouter.post("/:deviceId/upload", express.raw({ type: "*/*", limit: "500mb" }), deviceController.uploadFileController);
+
+// Website calls this to delete a file from the device.
+deviceRouter.delete("/:deviceId/files", fileController.deleteFileController);
+
+// Website calls this to create a folder on the device.
+deviceRouter.post("/:deviceId/mkdir", fileController.mkdirController);
+
 module.exports = deviceRouter;

@@ -187,8 +187,50 @@ async function createPreviewFilesController(req, res) {
   });
 }
 
+async function mkdirController(req, res) {
+  const { deviceId } = req.params;
+  const folderPath = normalizePath(req.query.path);
+
+  if (!folderPath || folderPath === "/") {
+    return res.status(400).json({ message: "path query parameter is required" });
+  }
+
+  const device = await findOwnedDevice(req.user._id, deviceId);
+  if (!device) return res.status(404).json({ message: "Device not found" });
+  if (device.status !== "online") return res.status(503).json({ message: "Device is offline" });
+
+  const realtime = require("../realtime");
+  const delivered = realtime.emitToDevice(deviceId, "folder:create", { folderPath });
+  if (!delivered) {
+    return res.status(503).json({ message: "Device socket not connected" });
+  }
+
+  res.status(200).json({ message: "Folder creation requested" });
+}
+
+async function deleteFileController(req, res) {
+  const { deviceId } = req.params;
+  const filePath = normalizePath(req.query.path);
+
+  if (!filePath || filePath === "/") {
+    return res.status(400).json({ message: "path query parameter is required" });
+  }
+
+  const device = await findOwnedDevice(req.user._id, deviceId);
+  if (!device) return res.status(404).json({ message: "Device not found" });
+
+  await fileModel.deleteOne({ user: req.user._id, deviceId, filePath });
+
+  const realtime = require("../realtime");
+  realtime.emitToDevice(deviceId, "file:delete", { filePath });
+
+  res.status(200).json({ message: "File deleted" });
+}
+
 module.exports = {
   listDeviceFilesController,
   syncDeviceFilesController,
   createPreviewFilesController,
+  deleteFileController,
+  mkdirController,
 };
