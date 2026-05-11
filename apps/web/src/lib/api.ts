@@ -145,6 +145,13 @@ export function deleteFile(deviceId: string, filePath: string) {
   });
 }
 
+export function moveItem(deviceId: string, sourcePath: string, destFolderPath: string) {
+  return request<{ message: string; newPath: string }>(`/api/devices/${deviceId}/files/move`, {
+    method: "PATCH",
+    body: JSON.stringify({ sourcePath, destFolderPath }),
+  });
+}
+
 export function renameItem(deviceId: string, filePath: string, newName: string) {
   const params = new URLSearchParams({ path: filePath });
   return request<{ message: string; newPath: string }>(`/api/devices/${deviceId}/files?${params.toString()}`, {

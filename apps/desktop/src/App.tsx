@@ -107,7 +107,10 @@ export default function App() {
 
     ipc().invoke("folder:watch", folderPath);
 
-    const handler = () => pushFileSync(deviceId, folderPath);
+    const handler = () => {
+      pushFileSync(deviceId, folderPath);
+      pushStorageUpdate(deviceId, folderPath);
+    };
     ipc().on("folder:changed", handler);
 
     return () => {

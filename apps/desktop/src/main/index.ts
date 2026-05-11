@@ -454,5 +454,5 @@ ipcMain.handle("storage:get-info", async (_, folderPath: string) => {
 
   const used = fs.existsSync(folderPath) ? folderSize(folderPath) : 0;
   const disk = await checkDiskSpace(folderPath);
-  return { usedStorageBytes: used, storageLimitBytes: disk.free };
+  return { usedStorageBytes: used, storageLimitBytes: disk.size };
 });

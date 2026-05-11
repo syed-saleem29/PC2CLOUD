@@ -45,6 +45,9 @@ deviceRouter.delete("/:deviceId/files", fileController.deleteFileController);
 // Website calls this to rename a file or folder on the device.
 deviceRouter.patch("/:deviceId/files", fileController.renameItemController);
 
+// Website calls this to move a file or folder to a different folder on the device.
+deviceRouter.patch("/:deviceId/files/move", fileController.moveItemController);
+
 // Website calls this to create a folder on the device.
 deviceRouter.post("/:deviceId/mkdir", fileController.mkdirController);
 

@@ -331,12 +331,74 @@ async function searchDeviceFilesController(req, res) {
   res.status(200).json({ files: files.map(formatFile) });
 }
 
+async function moveItemController(req, res) {
+  const { deviceId } = req.params;
+  const { sourcePath: rawSource, destFolderPath: rawDest } = req.body;
+
+  const oldPath = normalizePath(rawSource);
+  const destFolder = normalizePath(rawDest ?? "/");
+
+  if (!oldPath || oldPath === "/") {
+    return res.status(400).json({ message: "sourcePath is required" });
+  }
+
+  const device = await findOwnedDevice(req.user._id, deviceId);
+  if (!device) return res.status(404).json({ message: "Device not found" });
+
+  const item = await fileModel.findOne({ user: req.user._id, deviceId, filePath: oldPath });
+  if (!item) return res.status(404).json({ message: "Item not found" });
+
+  const newPath = normalizePath(destFolder === "/" ? `/${item.fileName}` : `${destFolder}/${item.fileName}`);
+
+  if (oldPath === newPath) return res.status(200).json({ message: "No change", newPath });
+
+  if (item.itemType === "folder") {
+    const descendants = await fileModel.find({
+      user: req.user._id,
+      deviceId,
+      filePath: { $regex: `^${escapeRegex(oldPath)}/` },
+    });
+    await fileModel.bulkWrite([
+      {
+        updateOne: {
+          filter: { _id: item._id },
+          update: { $set: { filePath: newPath, parentPath: destFolder } },
+        },
+      },
+      ...descendants.map((d) => ({
+        updateOne: {
+          filter: { _id: d._id },
+          update: {
+            $set: {
+              filePath: newPath + d.filePath.slice(oldPath.length),
+              parentPath: d.parentPath === oldPath
+                ? newPath
+                : newPath + d.parentPath.slice(oldPath.length),
+            },
+          },
+        },
+      })),
+    ], { ordered: false });
+  } else {
+    await fileModel.updateOne(
+      { _id: item._id },
+      { $set: { filePath: newPath, parentPath: destFolder } },
+    );
+  }
+
+  const realtime = require("../realtime");
+  realtime.emitToDevice(deviceId, "file:rename", { oldPath, newPath });
+
+  res.status(200).json({ message: "Item moved", newPath });
+}
+
 module.exports = {
   listDeviceFilesController,
   syncDeviceFilesController,
   createPreviewFilesController,
   deleteFileController,
   renameItemController,
+  moveItemController,
   mkdirController,
   searchDeviceFilesController,
 };

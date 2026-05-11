@@ -42,6 +42,7 @@ import {
   getDownloadUrl,
   getViewUrl,
   logoutUser,
+  moveItem,
   renameItem,
   searchDeviceFiles,
   unlinkDevice,
@@ -126,14 +127,19 @@ export function Dashboard() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
+  const [draggingFile, setDraggingFile] = useState<CloudFile | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<"name" | "size" | "date" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
+  const [moveMenuOpen, setMoveMenuOpen] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const selectedDeviceIdRef = useRef<string | null>(null);
   const selectedPathRef = useRef<string>("/");
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const uploadFolderInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadMenuRef = useRef<HTMLDivElement | null>(null);
+  const moveMenuRef = useRef<HTMLDivElement | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7000";
 
@@ -576,10 +582,22 @@ export function Dashboard() {
   // Close upload menu on outside click
   useEffect(() => {
     if (!uploadMenuOpen) return;
-    const handler = () => setUploadMenuOpen(false);
+    const handler = (e: MouseEvent) => {
+      if (!uploadMenuRef.current?.contains(e.target as Node)) setUploadMenuOpen(false);
+    };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [uploadMenuOpen]);
+
+  // Close move menu on outside click
+  useEffect(() => {
+    if (!moveMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (!moveMenuRef.current?.contains(e.target as Node)) setMoveMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [moveMenuOpen]);
 
   async function getFilesFromDrop(items: DataTransferItemList): Promise<Array<{ file: File; relativePath: string }>> {
     const results: Array<{ file: File; relativePath: string }> = [];
@@ -630,6 +648,18 @@ export function Dashboard() {
       showToast(`${uploaded} file${uploaded > 1 ? "s" : ""} uploaded`);
       const data = await getDeviceFiles(selectedDevice.deviceId, selectedPath).catch(() => null);
       if (data) setFiles(data.files);
+    }
+  }
+
+  async function handleMoveFile(file: CloudFile, destFolderPath: string) {
+    if (!selectedDevice || file.parentPath === destFolderPath) return;
+    try {
+      await moveItem(selectedDevice.deviceId, file.filePath, destFolderPath);
+      setFiles((prev) => prev.filter((f) => f.id !== file.id));
+      const label = destFolderPath === "/" ? "Home" : destFolderPath.split("/").pop();
+      showToast(`Moved to ${label}`);
+    } catch (error) {
+      if (!handleApiError(error)) showToast(error instanceof Error ? error.message : "Could not move item");
     }
   }
 
@@ -692,6 +722,23 @@ export function Dashboard() {
       await handleDownload(file);
     }
     setSelectedFiles(new Set());
+  }
+
+  async function handleBulkMove(destFolderPath: string) {
+    if (!selectedDevice || selectedFiles.size === 0) return;
+    setMoveMenuOpen(false);
+    const displayFiles = searchResults ?? files;
+    const toMove = displayFiles.filter((f) => selectedFiles.has(f.id) && f.parentPath !== destFolderPath);
+    if (toMove.length === 0) { showToast("Items are already in that folder"); return; }
+    let moved = 0;
+    for (const file of toMove) {
+      try { await moveItem(selectedDevice.deviceId, file.filePath, destFolderPath); moved++; } catch {}
+    }
+    setFiles((prev) => prev.filter((f) => !toMove.some((m) => m.id === f.id)));
+    if (searchResults) setSearchResults((prev) => prev ? prev.filter((f) => !toMove.some((m) => m.id === f.id)) : null);
+    setSelectedFiles(new Set());
+    const label = destFolderPath === "/" ? "Home" : destFolderPath.split("/").pop();
+    showToast(`${moved} item(s) moved to ${label}`);
   }
 
   // ── Auth screen ──────────────────────────────────────────────────────────────
@@ -1109,7 +1156,7 @@ export function Dashboard() {
                       <RefreshCcw size={14} className={isLoading ? "animate-spin" : ""} aria-hidden="true" />
                       Refresh
                     </button>
-                    <div className="relative" onMouseDown={(e) => e.stopPropagation()}>
+                    <div ref={uploadMenuRef} className="relative">
                       <button
                         onClick={() => setUploadMenuOpen((v) => !v)}
                         disabled={isUploading || selectedDevice.status !== "online"}
@@ -1213,6 +1260,45 @@ export function Dashboard() {
                       <ArrowDownToLine size={13} aria-hidden="true" />
                       Download
                     </button>
+                    {/* Move to dropdown */}
+                    <div ref={moveMenuRef} className="relative">
+                      <button
+                        onClick={() => setMoveMenuOpen((v) => !v)}
+                        className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted/50"
+                      >
+                        <FolderOpen size={13} aria-hidden="true" />
+                        Move to
+                        <ChevronDown size={11} className="text-muted-foreground" aria-hidden="true" />
+                      </button>
+                      {moveMenuOpen && (() => {
+                        const moveTargets: { label: string; path: string }[] = [];
+                        if (selectedPath !== "/") {
+                          const parent = selectedPath.split("/").slice(0, -1).join("/") || "/";
+                          moveTargets.push({ label: parent === "/" ? "Home  /" : `↑ ${parent.split("/").pop()}`, path: parent });
+                        }
+                        files
+                          .filter((f) => f.itemType === "folder" && !selectedFiles.has(f.id))
+                          .forEach((f) => moveTargets.push({ label: f.fileName, path: f.filePath }));
+                        return (
+                          <div className="absolute left-0 top-8 z-20 max-h-52 w-52 overflow-auto rounded-md border border-border bg-white shadow-md">
+                            {moveTargets.length === 0 ? (
+                              <p className="px-3 py-2 text-xs text-muted-foreground">No folders available</p>
+                            ) : (
+                              moveTargets.map((t) => (
+                                <button
+                                  key={t.path}
+                                  onClick={() => handleBulkMove(t.path)}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50"
+                                >
+                                  <FolderOpen size={13} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                                  <span className="truncate">{t.label}</span>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <button
                       onClick={handleBulkDelete}
                       className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
@@ -1232,10 +1318,10 @@ export function Dashboard() {
                 {/* File table */}
                 <div
                   className={`relative mt-4 overflow-hidden rounded-md border bg-white transition-colors ${isDragging ? "border-primary bg-primary/5" : "border-border"}`}
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                  onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
-                  onDrop={handleDrop}
+                  onDragOver={(e) => { if (draggingFile) { e.preventDefault(); return; } e.preventDefault(); setIsDragging(true); }}
+                  onDragEnter={(e) => { if (draggingFile) return; e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={(e) => { if (draggingFile) return; if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
+                  onDrop={(e) => { if (draggingFile) { e.preventDefault(); setDraggingFile(null); return; } handleDrop(e); }}
                 >
                   {isDragging && (
                     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-md bg-primary/10 text-sm font-medium text-primary">
@@ -1324,12 +1410,32 @@ export function Dashboard() {
                             return (
                               <div
                                 key={file.id}
+                                draggable={!isRenaming}
+                                onDragStart={(e) => { setDraggingFile(file); e.dataTransfer.effectAllowed = "move"; }}
+                                onDragEnd={() => { setDraggingFile(null); setDragOverFolderId(null); }}
+                                onDragOver={file.itemType === "folder" && !isRenaming ? (e) => {
+                                  if (!draggingFile || draggingFile.id === file.id) return;
+                                  e.preventDefault(); e.stopPropagation();
+                                  e.dataTransfer.dropEffect = "move";
+                                  setDragOverFolderId(file.id);
+                                } : undefined}
+                                onDragLeave={file.itemType === "folder" ? (e) => {
+                                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverFolderId(null);
+                                } : undefined}
+                                onDrop={file.itemType === "folder" && !isRenaming ? (e) => {
+                                  e.preventDefault(); e.stopPropagation();
+                                  setDragOverFolderId(null);
+                                  if (draggingFile && draggingFile.id !== file.id) {
+                                    handleMoveFile(draggingFile, file.filePath);
+                                    setDraggingFile(null);
+                                  }
+                                } : undefined}
                                 onClick={() => {
                                   if (file.itemType === "folder" && !isRenaming) {
                                     openDeviceStorage(selectedDevice, file.filePath);
                                   }
                                 }}
-                                className={`grid grid-cols-[32px_1fr_110px_160px_148px] items-center px-4 py-3 text-sm ${isSelected ? "bg-primary/5" : ""} ${
+                                className={`grid grid-cols-[32px_1fr_110px_160px_148px] items-center px-4 py-3 text-sm ${isSelected ? "bg-primary/5" : ""} ${dragOverFolderId === file.id ? "bg-primary/10 ring-1 ring-inset ring-primary/30" : ""} ${
                                   file.itemType === "folder" && !isRenaming
                                     ? "cursor-pointer hover:bg-muted/30"
                                     : "hover:bg-muted/10"
