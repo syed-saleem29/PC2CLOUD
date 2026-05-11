@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } from "electron";
-import { join, dirname } from "path";
+import { join, dirname, resolve } from "path";
 import fs from "fs";
 import checkDiskSpace from "check-disk-space";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -10,6 +10,15 @@ const isDev = process.env.NODE_ENV === "development";
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
+function getIconPath(): string {
+  // In production the app is packaged — resources sit next to the executable.
+  // In development they live under the project resources/ folder.
+  if (app.isPackaged) {
+    return resolve(process.resourcesPath, "icon.ico");
+  }
+  return resolve(__dirname, "../../resources/icon.ico");
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 460,
@@ -17,6 +26,7 @@ function createWindow(): void {
     resizable: false,
     show: false,
     frame: false,
+    icon: getIconPath(),
     webPreferences: {
       contextIsolation: false,
       nodeIntegration: true,
@@ -42,8 +52,11 @@ function createWindow(): void {
 }
 
 function createTray(): void {
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
+  const trayIconPath = app.isPackaged
+    ? resolve(process.resourcesPath, "tray.png")
+    : resolve(__dirname, "../../resources/tray.png");
+  const icon = nativeImage.createFromPath(trayIconPath);
+  tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
   tray.setToolTip("PC2CLOUD");
 
   function rebuildTrayMenu() {

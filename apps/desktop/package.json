@@ -24,6 +24,10 @@
       "out/**",
       "package.json"
     ],
+    "extraResources": [
+      { "from": "resources/icon.ico", "to": "icon.ico" },
+      { "from": "resources/tray.png", "to": "tray.png" }
+    ],
     "extraMetadata": {
       "main": "out/main/index.cjs"
     },
@@ -31,6 +35,7 @@
       "target": [
         { "target": "nsis", "arch": ["x64"] }
       ],
+      "icon": "resources/icon.ico",
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
