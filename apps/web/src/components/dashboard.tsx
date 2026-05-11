@@ -2,7 +2,9 @@
 
 import {
   ArrowDownToLine,
+  ArrowUpDown,
   Check,
+  ChevronDown,
   ChevronRight,
   Cloud,
   Computer,
@@ -109,7 +111,7 @@ export function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [previewState, setPreviewState] = useState<
-    | { type: "image" | "pdf"; url: string; name: string }
+    | { type: "image" | "pdf" | "audio" | "video"; url: string; name: string }
     | { type: "text"; content: string; name: string }
     | { type: "spreadsheet"; html: string; name: string }
     | null
@@ -122,10 +124,16 @@ export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CloudFile[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [isDragging, setIsDragging] = useState(false);
+  const [sortKey, setSortKey] = useState<"name" | "size" | "date" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const selectedDeviceIdRef = useRef<string | null>(null);
   const selectedPathRef = useRef<string>("/");
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadFolderInputRef = useRef<HTMLInputElement | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7000";
 
@@ -344,6 +352,7 @@ export function Dashboard() {
     setActiveSection("storage");
     setSearchQuery("");
     setSearchResults(null);
+    setSelectedFiles(new Set());
     setIsLoading(true);
     try {
       const data = await getDeviceFiles(device.deviceId, path);
@@ -442,6 +451,10 @@ export function Dashboard() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const html = utils.sheet_to_html(sheet);
         setPreviewState({ type: "spreadsheet", html, name: file.fileName });
+      } else if (mime.startsWith("audio/")) {
+        setPreviewState({ type: "audio", url: URL.createObjectURL(blob), name: file.fileName });
+      } else if (mime.startsWith("video/")) {
+        setPreviewState({ type: "video", url: URL.createObjectURL(blob), name: file.fileName });
       }
     } catch {
       showToast("Could not load preview");
@@ -452,7 +465,7 @@ export function Dashboard() {
 
   function closePreview() {
     setPreviewState((prev) => {
-      if (prev && (prev.type === "image" || prev.type === "pdf")) URL.revokeObjectURL(prev.url);
+      if (prev && "url" in prev) URL.revokeObjectURL(prev.url);
       return null;
     });
   }
@@ -558,6 +571,127 @@ export function Dashboard() {
     } catch (error) {
       if (!handleApiError(error)) showToast(error instanceof Error ? error.message : "Could not rename");
     }
+  }
+
+  // Close upload menu on outside click
+  useEffect(() => {
+    if (!uploadMenuOpen) return;
+    const handler = () => setUploadMenuOpen(false);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [uploadMenuOpen]);
+
+  async function getFilesFromDrop(items: DataTransferItemList): Promise<Array<{ file: File; relativePath: string }>> {
+    const results: Array<{ file: File; relativePath: string }> = [];
+
+    async function readDir(reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> {
+      const all: FileSystemEntry[] = [];
+      const read = (): Promise<FileSystemEntry[]> => new Promise((res) => reader.readEntries(res));
+      let batch = await read();
+      while (batch.length > 0) { all.push(...batch); batch = await read(); }
+      return all;
+    }
+
+    async function processEntry(entry: FileSystemEntry, parentPath = "") {
+      if (entry.isFile) {
+        const file = await new Promise<File>((res) => (entry as FileSystemFileEntry).file(res));
+        results.push({ file, relativePath: parentPath ? `${parentPath}/${entry.name}` : entry.name });
+      } else if (entry.isDirectory) {
+        const subPath = parentPath ? `${parentPath}/${entry.name}` : entry.name;
+        for (const child of await readDir((entry as FileSystemDirectoryEntry).createReader())) {
+          await processEntry(child, subPath);
+        }
+      }
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const entry = items[i].webkitGetAsEntry?.();
+      if (entry) await processEntry(entry);
+    }
+    return results;
+  }
+
+  async function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    if (!selectedDevice || selectedDevice.status !== "online") return;
+    const items = e.dataTransfer.items;
+    if (!items.length) return;
+    setIsUploading(true);
+    const entries = await getFilesFromDrop(items);
+    let uploaded = 0;
+    for (const { file, relativePath } of entries) {
+      const destPath = selectedPath === "/" ? `/${relativePath}` : `${selectedPath}/${relativePath}`;
+      const ok = await uploadFileXhr(selectedDevice.deviceId, file, destPath);
+      if (ok) uploaded++; else showToast(`${file.name}: Upload failed`);
+    }
+    setIsUploading(false);
+    if (uploaded > 0) {
+      showToast(`${uploaded} file${uploaded > 1 ? "s" : ""} uploaded`);
+      const data = await getDeviceFiles(selectedDevice.deviceId, selectedPath).catch(() => null);
+      if (data) setFiles(data.files);
+    }
+  }
+
+  function handleSort(key: "name" | "size" | "date") {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
+  async function handleFolderUpload(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !selectedDevice) return;
+    if (selectedDevice.status !== "online") {
+      showToast("Device is offline — cannot upload files right now.");
+      return;
+    }
+    setIsUploading(true);
+    let uploaded = 0;
+    for (const file of Array.from(fileList)) {
+      const relPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+      const destPath = selectedPath === "/" ? `/${relPath}` : `${selectedPath}/${relPath}`;
+      const ok = await uploadFileXhr(selectedDevice.deviceId, file, destPath);
+      if (ok) uploaded++;
+      else showToast(`${file.name}: Upload failed`);
+    }
+    setIsUploading(false);
+    if (uploadFolderInputRef.current) uploadFolderInputRef.current.value = "";
+    if (uploaded > 0) {
+      showToast(`${uploaded} file${uploaded > 1 ? "s" : ""} uploaded`);
+      const data = await getDeviceFiles(selectedDevice.deviceId, selectedPath).catch(() => null);
+      if (data) setFiles(data.files);
+    }
+  }
+
+  function toggleSelect(fileId: string) {
+    setSelectedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId); else next.add(fileId);
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    if (!selectedDevice || selectedFiles.size === 0) return;
+    if (!window.confirm(`Delete ${selectedFiles.size} selected item(s)? This cannot be undone.`)) return;
+    const displayFiles = searchResults ?? files;
+    const toDelete = displayFiles.filter((f) => selectedFiles.has(f.id));
+    for (const file of toDelete) {
+      try { await deleteFile(selectedDevice.deviceId, file.filePath); } catch {}
+    }
+    setFiles((prev) => prev.filter((f) => !selectedFiles.has(f.id)));
+    if (searchResults) setSearchResults((prev) => prev ? prev.filter((f) => !selectedFiles.has(f.id)) : null);
+    setSelectedFiles(new Set());
+    showToast(`${toDelete.length} item(s) deleted`);
+  }
+
+  async function handleBulkDownload() {
+    if (!selectedDevice || selectedFiles.size === 0) return;
+    const displayFiles = searchResults ?? files;
+    const toDownload = displayFiles.filter((f) => selectedFiles.has(f.id) && f.itemType === "file");
+    for (const file of toDownload) {
+      await handleDownload(file);
+    }
+    setSelectedFiles(new Set());
   }
 
   // ── Auth screen ──────────────────────────────────────────────────────────────
@@ -975,22 +1109,52 @@ export function Dashboard() {
                       <RefreshCcw size={14} className={isLoading ? "animate-spin" : ""} aria-hidden="true" />
                       Refresh
                     </button>
-                    <button
-                      onClick={() => uploadInputRef.current?.click()}
-                      disabled={isUploading || selectedDevice.status !== "online"}
-                      className="flex h-9 items-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-medium disabled:opacity-50"
-                    >
-                      {isUploading
-                        ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
-                        : <Upload size={14} aria-hidden="true" />}
-                      {isUploading ? "Uploading…" : "Upload"}
-                    </button>
+                    <div className="relative" onMouseDown={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => setUploadMenuOpen((v) => !v)}
+                        disabled={isUploading || selectedDevice.status !== "online"}
+                        className="flex h-9 items-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-medium disabled:opacity-50"
+                      >
+                        {isUploading
+                          ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                          : <Upload size={14} aria-hidden="true" />}
+                        {isUploading ? "Uploading…" : "Upload"}
+                        <ChevronDown size={12} className="text-muted-foreground" aria-hidden="true" />
+                      </button>
+                      {uploadMenuOpen && (
+                        <div className="absolute right-0 top-10 z-20 w-36 overflow-hidden rounded-md border border-border bg-white shadow-md">
+                          <button
+                            onClick={() => { setUploadMenuOpen(false); uploadInputRef.current?.click(); }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50"
+                          >
+                            <FileText size={14} aria-hidden="true" />
+                            Files
+                          </button>
+                          <button
+                            onClick={() => { setUploadMenuOpen(false); uploadFolderInputRef.current?.click(); }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50"
+                          >
+                            <FolderOpen size={14} aria-hidden="true" />
+                            Folder
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <input
                       ref={uploadInputRef}
                       type="file"
                       multiple
                       className="hidden"
                       onChange={(e) => handleUpload(e.target.files)}
+                    />
+                    <input
+                      ref={uploadFolderInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleFolderUpload(e.target.files)}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      {...({ webkitdirectory: "" } as any)}
                     />
                     <button
                       onClick={() => setNewFolderName("")}
@@ -1038,10 +1202,58 @@ export function Dashboard() {
                   </form>
                 )}
 
+                {/* Bulk action bar */}
+                {selectedFiles.size > 0 && (
+                  <div className="mt-3 flex items-center gap-3 rounded-md border border-border bg-white px-4 py-2 text-sm">
+                    <span className="flex-1 text-muted-foreground">{selectedFiles.size} selected</span>
+                    <button
+                      onClick={handleBulkDownload}
+                      className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+                    >
+                      <ArrowDownToLine size={13} aria-hidden="true" />
+                      Download
+                    </button>
+                    <button
+                      onClick={handleBulkDelete}
+                      className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                    >
+                      <Trash2 size={13} aria-hidden="true" />
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setSelectedFiles(new Set())}
+                      className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+                    >
+                      <X size={13} aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
+
                 {/* File table */}
-                <div className="mt-4 overflow-hidden rounded-md border border-border bg-white">
+                <div
+                  className={`relative mt-4 overflow-hidden rounded-md border bg-white transition-colors ${isDragging ? "border-primary bg-primary/5" : "border-border"}`}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
+                  onDrop={handleDrop}
+                >
+                  {isDragging && (
+                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-md bg-primary/10 text-sm font-medium text-primary">
+                      <Upload size={18} aria-hidden="true" />
+                      Drop files or folders to upload
+                    </div>
+                  )}
                   {(() => {
-                    const displayFiles = searchResults ?? files;
+                    const raw = searchResults ?? files;
+                    const displayFiles = sortKey
+                      ? [...raw].sort((a, b) => {
+                          let cmp = 0;
+                          if (sortKey === "name") cmp = a.fileName.localeCompare(b.fileName);
+                          else if (sortKey === "size") cmp = a.sizeBytes - b.sizeBytes;
+                          else if (sortKey === "date") cmp = new Date(a.modifiedAt).getTime() - new Date(b.modifiedAt).getTime();
+                          return sortDir === "asc" ? cmp : -cmp;
+                        })
+                      : raw;
                     const isEmpty = displayFiles.length === 0;
 
                     if (isSearching) {
@@ -1071,10 +1283,28 @@ export function Dashboard() {
 
                     return (
                       <>
-                        <div className="grid grid-cols-[1fr_110px_160px_148px] border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
-                          <span>Name</span>
-                          <span>Size</span>
-                          <span>Modified</span>
+                        <div className="grid grid-cols-[32px_1fr_110px_160px_148px] border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 cursor-pointer"
+                            checked={displayFiles.length > 0 && displayFiles.every((f) => selectedFiles.has(f.id))}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedFiles(new Set(displayFiles.map((f) => f.id)));
+                              else setSelectedFiles(new Set());
+                            }}
+                          />
+                          <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-foreground">
+                            Name
+                            {sortKey === "name" ? (sortDir === "asc" ? " ↑" : " ↓") : <ArrowUpDown size={11} className="opacity-40" />}
+                          </button>
+                          <button onClick={() => handleSort("size")} className="flex items-center gap-1 hover:text-foreground">
+                            Size
+                            {sortKey === "size" ? (sortDir === "asc" ? " ↑" : " ↓") : <ArrowUpDown size={11} className="opacity-40" />}
+                          </button>
+                          <button onClick={() => handleSort("date")} className="flex items-center gap-1 hover:text-foreground">
+                            Modified
+                            {sortKey === "date" ? (sortDir === "asc" ? " ↑" : " ↓") : <ArrowUpDown size={11} className="opacity-40" />}
+                          </button>
                           <span />
                         </div>
                         <div className="divide-y divide-border">
@@ -1082,12 +1312,15 @@ export function Dashboard() {
                             const isViewable = file.itemType === "file" && (
                               file.mimeType?.startsWith("image/") ||
                               file.mimeType?.startsWith("text/") ||
+                              file.mimeType?.startsWith("audio/") ||
+                              file.mimeType?.startsWith("video/") ||
                               file.mimeType === "application/pdf" ||
                               file.mimeType === "application/json" ||
                               file.mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
                               file.mimeType === "application/vnd.ms-excel"
                             );
                             const isRenaming = renamingFile?.id === file.id;
+                            const isSelected = selectedFiles.has(file.id);
                             return (
                               <div
                                 key={file.id}
@@ -1096,12 +1329,19 @@ export function Dashboard() {
                                     openDeviceStorage(selectedDevice, file.filePath);
                                   }
                                 }}
-                                className={`grid grid-cols-[1fr_110px_160px_148px] items-center px-4 py-3 text-sm ${
+                                className={`grid grid-cols-[32px_1fr_110px_160px_148px] items-center px-4 py-3 text-sm ${isSelected ? "bg-primary/5" : ""} ${
                                   file.itemType === "folder" && !isRenaming
                                     ? "cursor-pointer hover:bg-muted/30"
                                     : "hover:bg-muted/10"
                                 }`}
                               >
+                                <input
+                                  type="checkbox"
+                                  className="mt-0.5 cursor-pointer"
+                                  checked={isSelected}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={() => toggleSelect(file.id)}
+                                />
                                 {isRenaming ? (
                                   <form
                                     onSubmit={(e) => handleRenameItem(e, file)}
@@ -1329,6 +1569,14 @@ export function Dashboard() {
                 <div className="h-[80vh] w-full overflow-auto p-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_td]:text-sm [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:px-2 [&_th]:py-1 [&_th]:text-sm [&_th]:font-medium">
                   <div dangerouslySetInnerHTML={{ __html: previewState.html }} />
                 </div>
+              )}
+              {previewState.type === "audio" && (
+                <div className="flex w-full items-center justify-center p-10">
+                  <audio controls src={previewState.url} className="w-full max-w-lg" />
+                </div>
+              )}
+              {previewState.type === "video" && (
+                <video controls src={previewState.url} className="h-[80vh] w-full bg-black object-contain" />
               )}
             </div>
           </div>
