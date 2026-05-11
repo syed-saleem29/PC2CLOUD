@@ -6,10 +6,20 @@ export default defineConfig({
   main: {
     entry: "src/main/index.ts",
     plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        output: { format: "cjs" },
+      },
+    },
   },
   preload: {
     entry: "src/preload/index.ts",
     plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        output: { format: "cjs" },
+      },
+    },
   },
   renderer: {
     root: resolve(__dirname),

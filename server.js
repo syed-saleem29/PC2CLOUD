@@ -3,7 +3,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const app = require("./src/app");
 const connectToDb = require("./src/config/database");
-const { clientOrigins } = require("./src/config/cors");
+const { corsOptions } = require("./src/config/cors");
 const registerSocketHandlers = require("./src/socket");
 const realtime = require("./src/realtime");
 
@@ -11,7 +11,14 @@ const port = process.env.PORT || 7000;
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: clientOrigins,
+    // Accept any origin — connections are secured by JWT middleware in socket.js.
+    // The Electron desktop app connects from a file:// context where Chromium sends
+    // an opaque origin that varies by platform; allowing all origins here is safe
+    // because unauthenticated sockets are rejected in the io.use() middleware.
+    origin: (origin, cb) => {
+      console.log(`[socket.io cors] origin: ${origin || "(none)"}`);
+      cb(null, true);
+    },
     credentials: true,
   },
 });

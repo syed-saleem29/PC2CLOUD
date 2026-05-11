@@ -26,26 +26,31 @@ function getTokenFromSocket(socket) {
 
 function registerSocketHandlers(io) {
   io.use((socket, next) => {
+    const origin = socket.handshake.headers.origin || "(none)";
     try {
       const token = getTokenFromSocket(socket);
+      console.log(`[socket] auth attempt — origin: ${origin}, hasToken: ${!!token}`);
 
       if (!token) {
+        console.log("[socket] rejected — no token");
         return next(new Error("Authentication required"));
       }
 
       socket.user = jwt.verify(token, process.env.JWT_SECRET);
+      console.log(`[socket] auth OK — userId: ${socket.user.id}`);
       next();
     } catch (error) {
+      console.log(`[socket] auth error — ${error.message}`);
       next(new Error("Invalid authentication token"));
     }
   });
 
   io.on("connection", (socket) => {
-    // Every authenticated socket (website or desktop) joins the user's room
-    // so device:status events are delivered without a separate subscribe step.
+    console.log(`[socket] connected — id: ${socket.id}, userId: ${socket.user.id}`);
     socket.join(`user:${socket.user.id}`);
 
     socket.on("device:online", async ({ deviceId }) => {
+      console.log(`[socket] device:online — deviceId: ${deviceId}, userId: ${socket.user.id}`);
       if (!deviceId) {
         return;
       }
@@ -67,15 +72,19 @@ function registerSocketHandlers(io) {
       if (device) {
         socket.deviceId = deviceId;
         realtime.deviceSockets.set(deviceId, socket);
+        console.log(`[socket] device registered — deviceId: ${deviceId}`);
         io.to(`user:${socket.user.id}`).emit("device:status", {
           deviceId,
           status: "online",
           lastSeen: device.lastSeen,
         });
+      } else {
+        console.log(`[socket] device:online — device NOT found in DB for deviceId: ${deviceId}`);
       }
     });
 
     socket.on("disconnect", async () => {
+      console.log(`[socket] disconnected — id: ${socket.id}, deviceId: ${socket.deviceId || "(none)"}`);
       if (!socket.deviceId) {
         return;
       }
@@ -97,6 +106,7 @@ function registerSocketHandlers(io) {
       );
 
       if (device) {
+        console.log(`[socket] device marked offline — deviceId: ${socket.deviceId}`);
         io.to(`user:${socket.user.id}`).emit("device:status", {
           deviceId: socket.deviceId,
           status: "offline",

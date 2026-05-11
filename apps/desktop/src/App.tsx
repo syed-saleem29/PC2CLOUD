@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
 import Login from "./screens/Login";
 import Setup from "./screens/Setup";
 import Ready from "./screens/Ready";
+import { API_URL, apiFetch, setToken, getToken } from "./lib/api";
 
 type Screen = "loading" | "login" | "setup" | "ready";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ipc = () => (window as any).require("electron").ipcRenderer;
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:7000";
 
 const STORAGE_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
@@ -18,142 +17,22 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
-  const socketRef = useRef<Socket | null>(null);
   const storageSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const deviceIdRef = useRef<string>("");
   const folderPathRef = useRef<string>("");
   const fileSyncBusyRef = useRef(false);
 
   function connectSocket(deviceId: string) {
-    socketRef.current?.disconnect();
-    const socket = io(API_URL, { withCredentials: true });
-
-    socket.on("connect", () => socket.emit("device:online", { deviceId }));
-
-    socket.on("connect_error", (err) => {
-      if (err.message === "Authentication required" || err.message.includes("authentication")) {
-        socket.disconnect();
-        handleDisconnect();
-      }
-    });
-
-    socket.on("file:request", async ({ requestId, filePath }: { requestId: string; filePath: string }) => {
-      const folder = folderPathRef.current;
-      if (!folder) {
-        socket.emit("file:error", { requestId, message: "Folder path not configured on this device" });
-        return;
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const nodePath = (window as any).require("path");
-      const fullPath: string = nodePath.join(folder, filePath);
-      // Prevent path traversal
-      const resolved: string = nodePath.resolve(fullPath);
-      const root: string = nodePath.resolve(folder);
-      if (!resolved.startsWith(root)) {
-        socket.emit("file:error", { requestId, message: "Access denied" });
-        return;
-      }
-      try {
-        const result = await ipc().invoke("file:read", resolved);
-        await fetch(`${API_URL}/api/transfer/${requestId}`, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": result.mimeType || "application/octet-stream",
-            "x-file-name": encodeURIComponent(result.fileName),
-            "x-mime-type": result.mimeType || "application/octet-stream",
-          },
-          body: result.data,
-        });
-      } catch (err) {
-        fetch(`${API_URL}/api/transfer/${requestId}/error`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: err instanceof Error ? err.message : "Could not read file" }),
-        }).catch(() => {});
-      }
-    });
-
-    socket.on("file:upload", async ({ requestId, filePath }: { requestId: string; filePath: string }) => {
-      const folder = folderPathRef.current;
-      const rejectUpload = (message: string) =>
-        fetch(`${API_URL}/api/transfer/${requestId}/write-error`, {
-          method: "POST", credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
-        }).catch(() => {});
-
-      if (!folder) { rejectUpload("Folder not configured on this device"); return; }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const w = window as any;
-      const nodePath = w.require("path");
-      const fullPath: string = nodePath.join(folder, filePath);
-      const resolved: string = nodePath.resolve(fullPath);
-      const root: string = nodePath.resolve(folder);
-      if (!resolved.startsWith(root)) { rejectUpload("Access denied"); return; }
-
-      try {
-        const res = await fetch(`${API_URL}/api/transfer/${requestId}/content`, { credentials: "include" });
-        const arrayBuffer = await res.arrayBuffer();
-        // Write directly via Node.js fs — avoids Electron IPC size limits
-        const nodeFs = w.require("fs");
-        nodeFs.mkdirSync(nodePath.dirname(resolved), { recursive: true });
-        nodeFs.writeFileSync(resolved, Buffer.from(arrayBuffer));
-        await fetch(`${API_URL}/api/transfer/${requestId}/write-done`, {
-          method: "POST", credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ok: true }),
-        });
-      } catch (err) {
-        rejectUpload(err instanceof Error ? err.message : "Could not write file");
-      }
-    });
-
-    socket.on("folder:create", ({ folderPath }: { folderPath: string }) => {
-      const folder = folderPathRef.current;
-      if (!folder) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const w = window as any;
-      const nodePath = w.require("path");
-      const fullPath: string = nodePath.join(folder, folderPath);
-      const resolved: string = nodePath.resolve(fullPath);
-      const root: string = nodePath.resolve(folder);
-      if (!resolved.startsWith(root)) return;
-      try {
-        w.require("fs").mkdirSync(resolved, { recursive: true });
-      } catch { /* ignore */ }
-    });
-
-    socket.on("file:delete", ({ filePath }: { filePath: string }) => {
-      const folder = folderPathRef.current;
-      if (!folder) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const w = window as any;
-      const nodePath = w.require("path");
-      const fullPath: string = nodePath.join(folder, filePath);
-      const resolved: string = nodePath.resolve(fullPath);
-      const root: string = nodePath.resolve(folder);
-      if (!resolved.startsWith(root)) return;
-      // Delete directly via Node.js fs — no IPC round-trip needed
-      try {
-        const nodeFs = w.require("fs");
-        if (nodeFs.existsSync(resolved)) nodeFs.unlinkSync(resolved);
-      } catch { /* ignore — file may already be gone */ }
-    });
-
-    socketRef.current = socket;
+    ipc().invoke("socket:connect", deviceId, getToken(), API_URL);
   }
 
   async function pushStorageUpdate(deviceId: string, folderPath: string) {
     if (!folderPath) return;
     try {
       const info = await ipc().invoke("storage:get-info", folderPath);
-      await fetch(`${API_URL}/api/devices/${deviceId}/storage`, {
+      await apiFetch(`${API_URL}/api/devices/${deviceId}/storage`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(info),
       });
     } catch { /* ignore */ }
@@ -170,10 +49,9 @@ export default function App() {
         setLastSyncTime(new Date());
         return;
       }
-      const res = await fetch(`${API_URL}/api/devices/${deviceId}/files/sync`, {
+      const res = await apiFetch(`${API_URL}/api/devices/${deviceId}/files/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ files }),
       });
       if (!res.ok) throw new Error("Sync failed");
@@ -200,9 +78,8 @@ export default function App() {
     // Recover sharedFolderPath from the server when local config is missing it
     let folderPath = config.folderPath;
     try {
-      const res = await fetch(`${API_URL}/api/devices/${config.deviceId}/heartbeat`, {
+      const res = await apiFetch(`${API_URL}/api/devices/${config.deviceId}/heartbeat`, {
         method: "PATCH",
-        credentials: "include",
       });
       if (res.ok) {
         const data = await res.json();
@@ -215,6 +92,7 @@ export default function App() {
     } catch { /* go to ready anyway */ }
 
     folderPathRef.current = folderPath;
+    if (folderPath) ipc().invoke("socket:set-folder", folderPath);
     await pushStorageUpdate(config.deviceId, folderPath);
     await pushFileSync(config.deviceId, folderPath);
     startStorageSync(config.deviceId, folderPath);
@@ -241,15 +119,17 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      const authRes = await fetch(`${API_URL}/api/auth/me`, { credentials: "include" }).catch(() => null);
+      // Restore persisted token so Bearer auth works before any API call
+      const config = await ipc().invoke("config:read");
+      if (config?.authToken) setToken(config.authToken);
+
+      const authRes = await apiFetch(`${API_URL}/api/auth/me`).catch(() => null);
       if (!authRes?.ok) {
-        const config = await ipc().invoke("config:read");
         if (config?.deviceId) setHasConfig(true);
         setScreen("login");
         return;
       }
 
-      const config = await ipc().invoke("config:read");
       if (config?.deviceId) {
         await reconnectWithConfig(config);
         setScreen("ready");
@@ -257,7 +137,7 @@ export default function App() {
       }
 
       try {
-        const res = await fetch(`${API_URL}/api/devices`, { credentials: "include" });
+        const res = await apiFetch(`${API_URL}/api/devices`);
         if (res.ok) {
           const data = await res.json();
           if (data.devices?.length > 0) {
@@ -290,7 +170,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/devices`, { credentials: "include" });
+      const res = await apiFetch(`${API_URL}/api/devices`);
       if (res.ok) {
         const data = await res.json();
         if (data.devices?.length > 0) {
@@ -311,6 +191,7 @@ export default function App() {
   function handleSetupDone(deviceId: string, folderPath: string) {
     deviceIdRef.current = deviceId;
     folderPathRef.current = folderPath;
+    if (folderPath) ipc().invoke("socket:set-folder", folderPath);
     connectSocket(deviceId);
     pushStorageUpdate(deviceId, folderPath);
     pushFileSync(deviceId, folderPath);
@@ -320,10 +201,10 @@ export default function App() {
 
   async function handleDisconnect() {
     ipc().invoke("folder:unwatch");
-    socketRef.current?.disconnect();
-    socketRef.current = null;
+    ipc().invoke("socket:disconnect");
     if (storageSyncRef.current) clearInterval(storageSyncRef.current);
     await ipc().invoke("config:clear");
+    setToken("");
     setHasConfig(false);
     setScreen("login");
   }

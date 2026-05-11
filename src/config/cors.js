@@ -16,7 +16,9 @@ const clientOrigins = getClientOrigins();
 
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || clientOrigins.includes(origin)) {
+    // Allow: no origin (server-to-server / curl), the string "null" (Chromium/Electron
+    // file:// renderer sends this literal string), or an explicitly allowed origin.
+    if (!origin || origin === "null" || clientOrigins.includes(origin)) {
       return callback(null, true);
     }
 

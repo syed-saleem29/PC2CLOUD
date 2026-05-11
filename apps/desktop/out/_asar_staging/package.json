@@ -5,7 +5,7 @@
   "type": "module",
   "description": "PC2CLOUD desktop agent for Windows",
   "author": "PC2CLOUD",
-  "main": "out/main/index.cjs",
+  "main": "main/index.cjs",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -29,7 +29,12 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "requestedExecutionLevel": "asInvoker"
     },

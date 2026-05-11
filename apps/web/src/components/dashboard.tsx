@@ -129,11 +129,22 @@ export function Dashboard() {
   function connectDashboardSocket() {
     socketRef.current?.disconnect();
     const socket = io(API_URL, { withCredentials: true });
+
+    socket.on("connect", () => {
+      // Re-fetch devices on reconnect so status is fresh
+      getDevices().then((d) => setDevices(d.devices)).catch(() => {});
+    });
+
     socket.on("device:status", ({ deviceId, status, lastSeen }: { deviceId: string; status: string; lastSeen: string }) => {
       setDevices((prev) =>
         prev.map((d) => (d.deviceId === deviceId ? { ...d, status: status as Device["status"], lastSeen } : d)),
       );
     });
+
+    socket.on("connect_error", () => {
+      // Socket failed — fall back to polling until it recovers
+    });
+
     socketRef.current = socket;
   }
 
@@ -228,7 +239,7 @@ export function Dashboard() {
       } catch (error) {
         handleApiError(error);
       }
-    }, 10_000);
+    }, 5_000);
     return () => clearInterval(id);
   }, [isAuthenticated]);
 

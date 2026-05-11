@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Check, FolderOpen, HardDrive } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:7000";
+import { API_URL, apiFetch } from "../lib/api";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const w = window as any;
@@ -50,10 +49,9 @@ export default function Setup({ onDone }: { onDone: (deviceId: string, folderPat
       const folderPath: string = nodePath.join(selectedDir, "PC2CLOUD");
       nodeFs.mkdirSync(folderPath, { recursive: true });
 
-      const res = await fetch(`${API_URL}/api/devices/register`, {
+      const res = await apiFetch(`${API_URL}/api/devices/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           deviceName: deviceName.trim() || "My PC",
           platform: "windows",

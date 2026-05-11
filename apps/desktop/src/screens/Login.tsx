@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Cloud, LogIn } from "lucide-react";
+import { API_URL, setToken } from "../lib/api";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:7000";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ipc = () => (window as any).require("electron").ipcRenderer;
 
 export default function Login({ onDone }: { onDone: () => void }) {
   const [email, setEmail] = useState("");
@@ -22,6 +24,10 @@ export default function Login({ onDone }: { onDone: () => void }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Login failed");
+      if (data.token) {
+        setToken(data.token);
+        await ipc().invoke("config:write", { authToken: data.token });
+      }
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");

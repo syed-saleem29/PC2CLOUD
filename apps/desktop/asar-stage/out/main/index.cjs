@@ -1,16 +1,14 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu } from "electron";
-import { join, dirname } from "path";
-import fs from "fs";
-import checkDiskSpace from "check-disk-space";
-import __cjs_mod__ from "node:module";
-const __filename = import.meta.filename;
-const __dirname = import.meta.dirname;
-const require2 = __cjs_mod__.createRequire(import.meta.url);
+"use strict";
+const electron = require("electron");
+const path = require("path");
+const fs = require("fs");
+const checkDiskSpace = require("check-disk-space");
+const { io: socketIo } = require("socket.io-client");
 const isDev = process.env.NODE_ENV === "development";
 let mainWindow = null;
 let tray = null;
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  mainWindow = new electron.BrowserWindow({
     width: 460,
     height: 560,
     resizable: false,
@@ -19,7 +17,8 @@ function createWindow() {
     webPreferences: {
       contextIsolation: false,
       nodeIntegration: true,
-      sandbox: false
+      sandbox: false,
+      webSecurity: false
     }
   });
   mainWindow.on("ready-to-show", () => mainWindow?.show());
@@ -32,17 +31,17 @@ function createWindow() {
   if (isDev && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
 }
 function createTray() {
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
+  const icon = electron.nativeImage.createEmpty();
+  tray = new electron.Tray(icon);
   tray.setToolTip("PC2CLOUD");
   function rebuildTrayMenu() {
-    const launchAtStartup = app.getLoginItemSettings().openAtLogin;
+    const launchAtStartup = electron.app.getLoginItemSettings().openAtLogin;
     tray?.setContextMenu(
-      Menu.buildFromTemplate([
+      electron.Menu.buildFromTemplate([
         { label: "Open PC2CLOUD", click: () => mainWindow?.show() },
         { type: "separator" },
         {
@@ -50,14 +49,14 @@ function createTray() {
           type: "checkbox",
           checked: launchAtStartup,
           click: () => {
-            app.setLoginItemSettings({ openAtLogin: !launchAtStartup });
+            electron.app.setLoginItemSettings({ openAtLogin: !launchAtStartup });
             rebuildTrayMenu();
           }
         },
         { type: "separator" },
         { label: "Quit", click: () => {
           tray = null;
-          app.quit();
+          electron.app.quit();
         } }
       ])
     );
@@ -65,52 +64,97 @@ function createTray() {
   rebuildTrayMenu();
   tray.on("double-click", () => mainWindow?.show());
 }
-app.whenReady().then(() => {
+electron.app.whenReady().then(() => {
   createWindow();
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  electron.app.on("activate", () => {
+    if (electron.BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+electron.app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") electron.app.quit();
 });
-ipcMain.handle("config:read", () => {
-  const configPath = join(app.getPath("userData"), "pc2cloud.json");
+electron.ipcMain.handle("config:read", () => {
+  const configPath = path.join(electron.app.getPath("userData"), "pc2cloud.json");
   try {
     return JSON.parse(fs.readFileSync(configPath, "utf-8"));
   } catch {
     return null;
   }
 });
-ipcMain.handle("config:write", (_, data) => {
-  const configPath = join(app.getPath("userData"), "pc2cloud.json");
-  fs.writeFileSync(configPath, JSON.stringify(data, null, 2), "utf-8");
+electron.ipcMain.handle("config:write", (_, data) => {
+  const configPath = path.join(electron.app.getPath("userData"), "pc2cloud.json");
+  let existing = {};
+  try {
+    existing = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+  } catch {
+  }
+  fs.writeFileSync(configPath, JSON.stringify({ ...existing, ...data }, null, 2), "utf-8");
 });
-ipcMain.handle("config:clear", () => {
-  const configPath = join(app.getPath("userData"), "pc2cloud.json");
+electron.ipcMain.handle("config:clear", () => {
+  const configPath = path.join(electron.app.getPath("userData"), "pc2cloud.json");
   try {
     fs.unlinkSync(configPath);
   } catch {
   }
 });
-ipcMain.handle("dialog:pick-folder", async () => {
+let deviceSocket = null;
+electron.ipcMain.handle("socket:connect", (_, deviceId, token, apiUrl) => {
+  if (deviceSocket) {
+    deviceSocket.disconnect();
+    deviceSocket = null;
+  }
+  const socket = socketIo(apiUrl, {
+    auth: { token },
+    transports: ["websocket", "polling"]
+  });
+  socket.on("connect", () => {
+    socket.emit("device:online", { deviceId });
+    mainWindow?.webContents.send("socket:connected");
+  });
+  socket.on("connect_error", (err) => {
+    mainWindow?.webContents.send("socket:error", err.message);
+  });
+  socket.on("disconnect", () => {
+    mainWindow?.webContents.send("socket:disconnected");
+  });
+  socket.on("file:request", (data) => {
+    mainWindow?.webContents.send("socket:event", "file:request", data);
+  });
+  socket.on("file:upload", (data) => {
+    mainWindow?.webContents.send("socket:event", "file:upload", data);
+  });
+  socket.on("folder:create", (data) => {
+    mainWindow?.webContents.send("socket:event", "folder:create", data);
+  });
+  socket.on("file:delete", (data) => {
+    mainWindow?.webContents.send("socket:event", "file:delete", data);
+  });
+  deviceSocket = socket;
+});
+electron.ipcMain.handle("socket:disconnect", () => {
+  if (deviceSocket) {
+    deviceSocket.disconnect();
+    deviceSocket = null;
+  }
+});
+electron.ipcMain.handle("dialog:pick-folder", async () => {
   if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, {
+  const result = await electron.dialog.showOpenDialog(mainWindow, {
     properties: ["openDirectory"],
     title: "Choose where to create your PC2CLOUD folder",
     buttonLabel: "Select Folder"
   });
   return result.canceled ? null : result.filePaths[0];
 });
-ipcMain.handle("app:open-dashboard", () => {
-  shell.openExternal(process.env["VITE_DASHBOARD_URL"] ?? "http://localhost:8000");
+electron.ipcMain.handle("app:open-dashboard", () => {
+  electron.shell.openExternal(process.env["VITE_DASHBOARD_URL"] ?? "http://localhost:8000");
 });
-ipcMain.handle("app:minimize-tray", () => {
+electron.ipcMain.handle("app:minimize-tray", () => {
   if (!tray) createTray();
   mainWindow?.hide();
 });
-ipcMain.handle("window:minimize", () => mainWindow?.minimize());
-ipcMain.handle("window:close", () => {
+electron.ipcMain.handle("window:minimize", () => mainWindow?.minimize());
+electron.ipcMain.handle("window:close", () => {
   if (tray) {
     mainWindow?.hide();
   } else {
@@ -158,7 +202,7 @@ function scanFolder(rootDir) {
       return;
     }
     for (const entry of entries) {
-      const full = join(dir, entry.name);
+      const full = path.join(dir, entry.name);
       const rel = full.slice(rootDir.length).replace(/\\/g, "/");
       const filePath = rel.startsWith("/") ? rel : `/${rel}`;
       if (entry.isDirectory()) {
@@ -178,8 +222,8 @@ function scanFolder(rootDir) {
 }
 let folderWatcher = null;
 let watchDebounce = null;
-ipcMain.handle("folder:scan", (_, folderPath) => scanFolder(folderPath));
-ipcMain.handle("folder:watch", (_, folderPath) => {
+electron.ipcMain.handle("folder:scan", (_, folderPath) => scanFolder(folderPath));
+electron.ipcMain.handle("folder:watch", (_, folderPath) => {
   if (folderWatcher) {
     folderWatcher.close();
     folderWatcher = null;
@@ -192,7 +236,7 @@ ipcMain.handle("folder:watch", (_, folderPath) => {
     }, 1500);
   });
 });
-ipcMain.handle("folder:unwatch", () => {
+electron.ipcMain.handle("folder:unwatch", () => {
   if (folderWatcher) {
     folderWatcher.close();
     folderWatcher = null;
@@ -202,7 +246,7 @@ ipcMain.handle("folder:unwatch", () => {
     watchDebounce = null;
   }
 });
-ipcMain.handle("file:read", async (_, absolutePath) => {
+electron.ipcMain.handle("file:read", async (_, absolutePath) => {
   const stat = fs.statSync(absolutePath);
   if (stat.size > 500 * 1024 * 1024) {
     throw new Error("File too large to download via relay (max 500 MB)");
@@ -211,19 +255,19 @@ ipcMain.handle("file:read", async (_, absolutePath) => {
   const fileName = absolutePath.split(/[/\\]/).pop() ?? "download";
   return { data, fileName, mimeType: getMimeType(fileName) };
 });
-ipcMain.handle("file:write", (_, absolutePath, data) => {
-  fs.mkdirSync(dirname(absolutePath), { recursive: true });
+electron.ipcMain.handle("file:write", (_, absolutePath, data) => {
+  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
   fs.writeFileSync(absolutePath, Buffer.from(data));
 });
-ipcMain.handle("file:delete", (_, absolutePath) => {
+electron.ipcMain.handle("file:delete", (_, absolutePath) => {
   if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
 });
-ipcMain.handle("storage:get-info", async (_, folderPath) => {
+electron.ipcMain.handle("storage:get-info", async (_, folderPath) => {
   function folderSize(dir) {
     let total = 0;
     try {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name);
+        const full = path.join(dir, entry.name);
         if (entry.isDirectory()) total += folderSize(full);
         else if (entry.isFile()) total += fs.statSync(full).size;
       }
