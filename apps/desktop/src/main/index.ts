@@ -71,8 +71,20 @@ function createTray(): void {
   tray.on("double-click", () => mainWindow?.show());
 }
 
+async function checkForUpdates(): Promise<void> {
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/releases/latest`);
+    if (!res.ok) return;
+    const { version } = await res.json() as { version?: string; downloadUrl?: string };
+    if (version && version !== app.getVersion()) {
+      mainWindow?.webContents.send("update:available", { version });
+    }
+  } catch { /* server not reachable yet */ }
+}
+
 app.whenReady().then(() => {
   createWindow();
+  setTimeout(() => checkForUpdates(), 8000);
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

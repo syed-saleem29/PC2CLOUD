@@ -1,4 +1,5 @@
-import { ExternalLink, Minus, RefreshCcw, Unplug } from "lucide-react";
+import { ArrowDownToLine, ExternalLink, Minus, RefreshCcw, Unplug } from "lucide-react";
+import { useEffect, useState } from "react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const w = window as any;
@@ -11,6 +12,15 @@ type Props = {
 };
 
 export default function Ready({ onDisconnect, syncStatus, lastSyncTime, onSyncNow }: Props) {
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ipc = w.require("electron").ipcRenderer;
+    const handler = (_: unknown, { version }: { version: string }) => setUpdateVersion(version);
+    ipc.on("update:available", handler);
+    return () => ipc.removeListener("update:available", handler);
+  }, []);
+
   function syncLabel() {
     if (syncStatus === "syncing") return "Syncing files…";
     if (syncStatus === "error") return "Sync failed — click to retry";
@@ -47,6 +57,19 @@ export default function Ready({ onDisconnect, syncStatus, lastSyncTime, onSyncNo
         />
         {syncLabel()}
       </button>
+
+      {updateVersion && (
+        <div className="flex w-full max-w-xs items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          <ArrowDownToLine size={13} aria-hidden="true" className="shrink-0" />
+          <span className="flex-1">Update {updateVersion} available</span>
+          <button
+            onClick={() => w.require("electron").ipcRenderer.invoke("app:open-dashboard")}
+            className="font-medium underline"
+          >
+            Download
+          </button>
+        </div>
+      )}
 
       <div className="flex w-full max-w-xs flex-col gap-2">
         <button

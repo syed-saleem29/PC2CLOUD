@@ -39,14 +39,18 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "PC2CLOUD"
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "http://localhost:7000/releases"
     }
   },
   "dependencies": {
     "check-disk-space": "^3.4.0",
-    "lucide-react": "^0.468.0",
     "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
+    "lucide-react": "^0.468.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

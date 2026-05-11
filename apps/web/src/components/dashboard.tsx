@@ -116,6 +116,7 @@ export function Dashboard() {
   >(null);
   const [previewLoadingFile, setPreviewLoadingFile] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [fileProgress, setFileProgress] = useState<Record<string, number>>({});
   const [newFolderName, setNewFolderName] = useState<string | null>(null);
   const [renamingFile, setRenamingFile] = useState<{ id: string; name: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -355,6 +356,17 @@ export function Dashboard() {
     }
   }
 
+  function triggerBlobDownload(blob: Blob, fileName: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   async function handleDownload(file: CloudFile) {
     if (!selectedDevice) return;
     if (selectedDevice.status !== "online") {
@@ -368,16 +380,30 @@ export function Dashboard() {
         showToast((data as { message?: string }).message || "Download failed");
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = file.fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const contentLength = res.headers.get("Content-Length");
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+
+      if (total > 0 && res.body) {
+        const reader = res.body.getReader();
+        const chunks: Uint8Array<ArrayBuffer>[] = [];
+        let received = 0;
+        setFileProgress((prev) => ({ ...prev, [file.id]: 0 }));
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          setFileProgress((prev) => ({ ...prev, [file.id]: Math.min(99, Math.round((received / total) * 100)) }));
+        }
+        setFileProgress((prev) => { const n = { ...prev }; delete n[file.id]; return n; });
+        const blob = new Blob(chunks);
+        triggerBlobDownload(blob, file.fileName);
+      } else {
+        const blob = await res.blob();
+        triggerBlobDownload(blob, file.fileName);
+      }
     } catch {
+      setFileProgress((prev) => { const n = { ...prev }; delete n[file.id]; return n; });
       showToast("Download failed");
     }
   }
@@ -445,6 +471,26 @@ export function Dashboard() {
     }
   }
 
+  function uploadFileXhr(deviceId: string, file: File, destPath: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+      const key = `upload:${destPath}`;
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          setFileProgress((prev) => ({ ...prev, [key]: Math.round((e.loaded / e.total) * 100) }));
+        }
+      };
+      const cleanup = () => setFileProgress((prev) => { const n = { ...prev }; delete n[key]; return n; });
+      xhr.onload = () => { cleanup(); resolve(xhr.status >= 200 && xhr.status < 300); };
+      xhr.onerror = () => { cleanup(); resolve(false); };
+      xhr.open("POST", `${API_URL}/api/devices/${deviceId}/upload?path=${encodeURIComponent(destPath)}`);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.setRequestHeader("x-file-name", encodeURIComponent(file.name));
+      xhr.withCredentials = true;
+      xhr.send(file);
+    });
+  }
+
   async function handleUpload(fileList: FileList | null) {
     if (!fileList || fileList.length === 0 || !selectedDevice) return;
     if (selectedDevice.status !== "online") {
@@ -452,32 +498,12 @@ export function Dashboard() {
       return;
     }
     setIsUploading(true);
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7000";
     let uploaded = 0;
     for (const file of Array.from(fileList)) {
       const destPath = selectedPath === "/" ? `/${file.name}` : `${selectedPath}/${file.name}`;
-      try {
-        const res = await fetch(
-          `${API_URL}/api/devices/${selectedDevice.deviceId}/upload?path=${encodeURIComponent(destPath)}`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": file.type || "application/octet-stream",
-              "x-file-name": encodeURIComponent(file.name),
-            },
-            body: file,
-          },
-        );
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          showToast(`${file.name}: ${(data as { message?: string }).message || "Upload failed"}`);
-        } else {
-          uploaded++;
-        }
-      } catch {
-        showToast(`${file.name}: Upload failed`);
-      }
+      const ok = await uploadFileXhr(selectedDevice.deviceId, file, destPath);
+      if (ok) uploaded++;
+      else showToast(`${file.name}: Upload failed`);
     }
     setIsUploading(false);
     if (uploadInputRef.current) uploadInputRef.current.value = "";
@@ -654,10 +680,13 @@ export function Dashboard() {
         <div className="mx-2 mt-4 rounded-md border border-border p-3">
           <p className="text-sm font-medium">Windows app</p>
           <p className="mt-0.5 text-xs text-muted-foreground">One-click installer</p>
-          <button className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium">
+          <a
+            href={`${API_URL}/releases/PC2CLOUD%20Setup%200.1.0.exe`}
+            className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted/50"
+          >
             <ArrowDownToLine size={13} aria-hidden="true" />
             Download
-          </button>
+          </a>
         </div>
 
         <div className="mt-auto border-t border-border px-3 py-3">
@@ -1121,45 +1150,70 @@ export function Dashboard() {
                                   {formatDate(file.modifiedAt)}
                                 </span>
                                 <span className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                  {isViewable && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handlePreview(file)}
-                                      disabled={previewLoadingFile === file.id}
-                                      title="Preview"
-                                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                                    >
-                                      {previewLoadingFile === file.id
-                                        ? <Loader2 size={15} className="animate-spin" aria-hidden="true" />
-                                        : <Eye size={15} aria-hidden="true" />}
-                                    </button>
-                                  )}
-                                  {file.itemType === "file" && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDownload(file)}
-                                      title="Download"
-                                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    >
-                                      <ArrowDownToLine size={15} aria-hidden="true" />
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => setRenamingFile({ id: file.id, name: file.fileName })}
-                                    title="Rename"
-                                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                                  >
-                                    <Pencil size={15} aria-hidden="true" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteFile(file)}
-                                    title="Delete"
-                                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600"
-                                  >
-                                    <Trash2 size={15} aria-hidden="true" />
-                                  </button>
+                                  {(() => {
+                                    const dlPct = fileProgress[file.id];
+                                    const upKey = `upload:${selectedPath === "/" ? `/${file.fileName}` : `${selectedPath}/${file.fileName}`}`;
+                                    const upPct = fileProgress[upKey];
+                                    const pct = dlPct ?? upPct;
+                                    if (pct !== undefined) {
+                                      return (
+                                        <div className="flex w-full flex-col items-end gap-1 pr-1">
+                                          <span className="text-xs text-muted-foreground">
+                                            {dlPct !== undefined ? "Downloading" : "Uploading"} {pct}%
+                                          </span>
+                                          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                                            <div
+                                              className="h-full rounded-full bg-primary transition-all duration-200"
+                                              style={{ width: `${pct}%` }}
+                                            />
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <>
+                                        {isViewable && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handlePreview(file)}
+                                            disabled={previewLoadingFile === file.id}
+                                            title="Preview"
+                                            className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                                          >
+                                            {previewLoadingFile === file.id
+                                              ? <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+                                              : <Eye size={15} aria-hidden="true" />}
+                                          </button>
+                                        )}
+                                        {file.itemType === "file" && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDownload(file)}
+                                            title="Download"
+                                            className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                                          >
+                                            <ArrowDownToLine size={15} aria-hidden="true" />
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => setRenamingFile({ id: file.id, name: file.fileName })}
+                                          title="Rename"
+                                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                                        >
+                                          <Pencil size={15} aria-hidden="true" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteFile(file)}
+                                          title="Delete"
+                                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                                        >
+                                          <Trash2 size={15} aria-hidden="true" />
+                                        </button>
+                                      </>
+                                    );
+                                  })()}
                                 </span>
                               </div>
                             );

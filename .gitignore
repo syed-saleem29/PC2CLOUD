@@ -20,6 +20,16 @@ dist/
 coverage/
 .nyc_output
 
+# Desktop build artifacts
+apps/desktop/dist/
+apps/desktop/dist2/
+apps/desktop/dist3/
+apps/desktop/out/
+
+# Installer releases (large binaries — distribute separately)
+releases/*.exe
+releases/*.blockmap
+
 # IDEs and Tools
 .idea/
 .vscode/
