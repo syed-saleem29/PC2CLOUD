@@ -260,6 +260,27 @@ electron.ipcMain.handle("socket:connect", (_, deviceId, token, _apiUrl) => {
     } catch {
     }
   });
+  socket.on("folder:delete", ({ folderPath }) => {
+    const folder = sharedFolderPath;
+    const resolved = folder ? safeResolve(folder, folderPath) : null;
+    if (!resolved) return;
+    try {
+      const nodeFs = getNodeFs();
+      if (nodeFs.existsSync(resolved)) nodeFs.rmSync(resolved, { recursive: true, force: true });
+    } catch {
+    }
+  });
+  socket.on("file:rename", ({ oldPath, newPath }) => {
+    const folder = sharedFolderPath;
+    const oldResolved = folder ? safeResolve(folder, oldPath) : null;
+    const newResolved = folder ? safeResolve(folder, newPath) : null;
+    if (!oldResolved || !newResolved) return;
+    try {
+      const nodeFs = getNodeFs();
+      if (nodeFs.existsSync(oldResolved)) nodeFs.renameSync(oldResolved, newResolved);
+    } catch {
+    }
+  });
   deviceSocket = socket;
 });
 electron.ipcMain.handle("socket:disconnect", () => {

@@ -40,6 +40,7 @@ import {
   getDownloadUrl,
   getViewUrl,
   logoutUser,
+  renameItem,
   searchDeviceFiles,
   unlinkDevice,
   updateDeviceName,
@@ -116,6 +117,7 @@ export function Dashboard() {
   const [previewLoadingFile, setPreviewLoadingFile] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [newFolderName, setNewFolderName] = useState<string | null>(null);
+  const [renamingFile, setRenamingFile] = useState<{ id: string; name: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CloudFile[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -431,7 +433,10 @@ export function Dashboard() {
 
   async function handleDeleteFile(file: CloudFile) {
     if (!selectedDevice) return;
-    if (!window.confirm(`Delete "${file.fileName}" from your PC? This cannot be undone.`)) return;
+    const msg = file.itemType === "folder"
+      ? `Delete folder "${file.fileName}" and all its contents? This cannot be undone.`
+      : `Delete "${file.fileName}" from your PC? This cannot be undone.`;
+    if (!window.confirm(msg)) return;
     try {
       await deleteFile(selectedDevice.deviceId, file.filePath);
       setFiles((prev) => prev.filter((f) => f.id !== file.id));
@@ -506,6 +511,26 @@ export function Dashboard() {
       ]);
     } catch (error) {
       if (!handleApiError(error)) showToast(error instanceof Error ? error.message : "Could not create folder");
+    }
+  }
+
+  async function handleRenameItem(e: React.BaseSyntheticEvent, file: CloudFile) {
+    e.preventDefault();
+    if (!selectedDevice || !renamingFile) return;
+    const newName = renamingFile.name.trim();
+    if (!newName || newName === file.fileName) { setRenamingFile(null); return; }
+    try {
+      const { newPath } = await renameItem(selectedDevice.deviceId, file.filePath, newName);
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === file.id
+            ? { ...f, fileName: newName, filePath: newPath }
+            : f,
+        ),
+      );
+      setRenamingFile(null);
+    } catch (error) {
+      if (!handleApiError(error)) showToast(error instanceof Error ? error.message : "Could not rename");
     }
   }
 
@@ -1017,7 +1042,7 @@ export function Dashboard() {
 
                     return (
                       <>
-                        <div className="grid grid-cols-[1fr_110px_160px_112px] border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
+                        <div className="grid grid-cols-[1fr_110px_160px_148px] border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
                           <span>Name</span>
                           <span>Size</span>
                           <span>Modified</span>
@@ -1033,46 +1058,73 @@ export function Dashboard() {
                               file.mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
                               file.mimeType === "application/vnd.ms-excel"
                             );
+                            const isRenaming = renamingFile?.id === file.id;
                             return (
                               <div
                                 key={file.id}
                                 onClick={() => {
-                                  if (file.itemType === "folder") {
+                                  if (file.itemType === "folder" && !isRenaming) {
                                     openDeviceStorage(selectedDevice, file.filePath);
                                   }
                                 }}
-                                className={`grid grid-cols-[1fr_110px_160px_112px] items-center px-4 py-3 text-sm ${
-                                  file.itemType === "folder"
+                                className={`grid grid-cols-[1fr_110px_160px_148px] items-center px-4 py-3 text-sm ${
+                                  file.itemType === "folder" && !isRenaming
                                     ? "cursor-pointer hover:bg-muted/30"
                                     : "hover:bg-muted/10"
                                 }`}
                               >
-                                <div className="flex min-w-0 items-center gap-3">
-                                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                                    {file.itemType === "folder" ? (
-                                      <FolderOpen size={16} aria-hidden="true" />
-                                    ) : (
-                                      <FileText size={16} aria-hidden="true" />
-                                    )}
+                                {isRenaming ? (
+                                  <form
+                                    onSubmit={(e) => handleRenameItem(e, file)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex min-w-0 items-center gap-2"
+                                  >
+                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                                      {file.itemType === "folder" ? (
+                                        <FolderOpen size={16} aria-hidden="true" />
+                                      ) : (
+                                        <FileText size={16} aria-hidden="true" />
+                                      )}
+                                    </div>
+                                    <input
+                                      autoFocus
+                                      value={renamingFile.name}
+                                      onChange={(e) => setRenamingFile({ id: file.id, name: e.target.value })}
+                                      onKeyDown={(e) => e.key === "Escape" && setRenamingFile(null)}
+                                      className="h-7 min-w-0 flex-1 rounded border border-primary px-2 text-sm outline-none"
+                                    />
+                                    <button type="submit" title="Save" className="flex size-7 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground">
+                                      <Check size={13} aria-hidden="true" />
+                                    </button>
+                                  </form>
+                                ) : (
+                                  <div className="flex min-w-0 items-center gap-3">
+                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                                      {file.itemType === "folder" ? (
+                                        <FolderOpen size={16} aria-hidden="true" />
+                                      ) : (
+                                        <FileText size={16} aria-hidden="true" />
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="truncate font-medium">{file.fileName}</p>
+                                      {searchResults !== null && (
+                                        <p className="truncate text-xs text-muted-foreground">{file.parentPath}</p>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="min-w-0">
-                                    <p className="truncate font-medium">{file.fileName}</p>
-                                    {searchResults !== null && (
-                                      <p className="truncate text-xs text-muted-foreground">{file.parentPath}</p>
-                                    )}
-                                  </div>
-                                </div>
+                                )}
                                 <span className="text-muted-foreground">
                                   {file.itemType === "folder" ? "—" : formatBytes(file.sizeBytes)}
                                 </span>
                                 <span className="text-muted-foreground">
                                   {formatDate(file.modifiedAt)}
                                 </span>
-                                <span className="flex items-center gap-1">
+                                <span className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                   {isViewable && (
                                     <button
                                       type="button"
-                                      onClick={(e) => { e.stopPropagation(); handlePreview(file); }}
+                                      onClick={() => handlePreview(file)}
                                       disabled={previewLoadingFile === file.id}
                                       title="Preview"
                                       className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
@@ -1085,23 +1137,29 @@ export function Dashboard() {
                                   {file.itemType === "file" && (
                                     <button
                                       type="button"
-                                      onClick={(e) => { e.stopPropagation(); handleDownload(file); }}
+                                      onClick={() => handleDownload(file)}
                                       title="Download"
                                       className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                                     >
                                       <ArrowDownToLine size={15} aria-hidden="true" />
                                     </button>
                                   )}
-                                  {file.itemType === "file" && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => { e.stopPropagation(); handleDeleteFile(file); }}
-                                      title="Delete"
-                                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600"
-                                    >
-                                      <Trash2 size={15} aria-hidden="true" />
-                                    </button>
-                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => setRenamingFile({ id: file.id, name: file.fileName })}
+                                    title="Rename"
+                                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                                  >
+                                    <Pencil size={15} aria-hidden="true" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteFile(file)}
+                                    title="Delete"
+                                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                                  >
+                                    <Trash2 size={15} aria-hidden="true" />
+                                  </button>
                                 </span>
                               </div>
                             );

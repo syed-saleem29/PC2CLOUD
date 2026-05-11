@@ -1,6 +1,10 @@
 const fileModel = require("../models/file.model");
 const deviceModel = require("../models/device.model");
 
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function normalizePath(value) {
   if (!value || value === ".") {
     return "/";
@@ -219,12 +223,89 @@ async function deleteFileController(req, res) {
   const device = await findOwnedDevice(req.user._id, deviceId);
   if (!device) return res.status(404).json({ message: "Device not found" });
 
-  await fileModel.deleteOne({ user: req.user._id, deviceId, filePath });
+  const item = await fileModel.findOne({ user: req.user._id, deviceId, filePath });
+  const realtime = require("../realtime");
+
+  if (item?.itemType === "folder") {
+    await fileModel.deleteMany({
+      user: req.user._id,
+      deviceId,
+      $or: [
+        { filePath },
+        { filePath: { $regex: `^${escapeRegex(filePath)}/` } },
+      ],
+    });
+    realtime.emitToDevice(deviceId, "folder:delete", { folderPath: filePath });
+  } else {
+    await fileModel.deleteOne({ user: req.user._id, deviceId, filePath });
+    realtime.emitToDevice(deviceId, "file:delete", { filePath });
+  }
+
+  res.status(200).json({ message: "Item deleted" });
+}
+
+async function renameItemController(req, res) {
+  const { deviceId } = req.params;
+  const oldPath = normalizePath(req.query.path);
+  const { newName } = req.body;
+
+  if (!oldPath || oldPath === "/") {
+    return res.status(400).json({ message: "path query parameter is required" });
+  }
+  if (!newName?.trim()) {
+    return res.status(400).json({ message: "newName is required" });
+  }
+
+  const device = await findOwnedDevice(req.user._id, deviceId);
+  if (!device) return res.status(404).json({ message: "Device not found" });
+
+  const item = await fileModel.findOne({ user: req.user._id, deviceId, filePath: oldPath });
+  if (!item) return res.status(404).json({ message: "Item not found" });
+
+  const parentPath = getParentPath(oldPath);
+  const newPath = normalizePath(parentPath === "/" ? `/${newName.trim()}` : `${parentPath}/${newName.trim()}`);
+
+  if (oldPath === newPath) return res.status(200).json({ message: "No change", newPath });
+
+  if (item.itemType === "folder") {
+    const descendants = await fileModel.find({
+      user: req.user._id,
+      deviceId,
+      filePath: { $regex: `^${escapeRegex(oldPath)}/` },
+    });
+    const ops = [
+      {
+        updateOne: {
+          filter: { _id: item._id },
+          update: { $set: { filePath: newPath, fileName: newName.trim(), parentPath } },
+        },
+      },
+      ...descendants.map((d) => ({
+        updateOne: {
+          filter: { _id: d._id },
+          update: {
+            $set: {
+              filePath: newPath + d.filePath.slice(oldPath.length),
+              parentPath: d.parentPath === oldPath
+                ? newPath
+                : newPath + d.parentPath.slice(oldPath.length),
+            },
+          },
+        },
+      })),
+    ];
+    await fileModel.bulkWrite(ops, { ordered: false });
+  } else {
+    await fileModel.updateOne(
+      { _id: item._id },
+      { $set: { filePath: newPath, fileName: newName.trim() } },
+    );
+  }
 
   const realtime = require("../realtime");
-  realtime.emitToDevice(deviceId, "file:delete", { filePath });
+  realtime.emitToDevice(deviceId, "file:rename", { oldPath, newPath });
 
-  res.status(200).json({ message: "File deleted" });
+  res.status(200).json({ message: "Item renamed", newPath });
 }
 
 async function searchDeviceFilesController(req, res) {
@@ -255,6 +336,7 @@ module.exports = {
   syncDeviceFilesController,
   createPreviewFilesController,
   deleteFileController,
+  renameItemController,
   mkdirController,
   searchDeviceFilesController,
 };

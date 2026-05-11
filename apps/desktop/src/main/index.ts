@@ -262,6 +262,27 @@ ipcMain.handle("socket:connect", (_, deviceId: string, token: string, _apiUrl: s
     } catch { /* ignore */ }
   });
 
+  socket.on("folder:delete", ({ folderPath }: { folderPath: string }) => {
+    const folder = sharedFolderPath;
+    const resolved = folder ? safeResolve(folder, folderPath) : null;
+    if (!resolved) return;
+    try {
+      const nodeFs = getNodeFs();
+      if (nodeFs.existsSync(resolved)) nodeFs.rmSync(resolved, { recursive: true, force: true });
+    } catch { /* ignore */ }
+  });
+
+  socket.on("file:rename", ({ oldPath, newPath }: { oldPath: string; newPath: string }) => {
+    const folder = sharedFolderPath;
+    const oldResolved = folder ? safeResolve(folder, oldPath) : null;
+    const newResolved = folder ? safeResolve(folder, newPath) : null;
+    if (!oldResolved || !newResolved) return;
+    try {
+      const nodeFs = getNodeFs();
+      if (nodeFs.existsSync(oldResolved)) nodeFs.renameSync(oldResolved, newResolved);
+    } catch { /* ignore */ }
+  });
+
   deviceSocket = socket;
 });
 

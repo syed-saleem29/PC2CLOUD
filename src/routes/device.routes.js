@@ -39,8 +39,11 @@ deviceRouter.get("/:deviceId/download", deviceController.downloadFileController)
 // Website calls this to upload a file to the device via relay.
 deviceRouter.post("/:deviceId/upload", express.raw({ type: "*/*", limit: "500mb" }), deviceController.uploadFileController);
 
-// Website calls this to delete a file from the device.
+// Website calls this to delete a file or folder from the device.
 deviceRouter.delete("/:deviceId/files", fileController.deleteFileController);
+
+// Website calls this to rename a file or folder on the device.
+deviceRouter.patch("/:deviceId/files", fileController.renameItemController);
 
 // Website calls this to create a folder on the device.
 deviceRouter.post("/:deviceId/mkdir", fileController.mkdirController);

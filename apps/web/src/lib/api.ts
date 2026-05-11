@@ -145,6 +145,14 @@ export function deleteFile(deviceId: string, filePath: string) {
   });
 }
 
+export function renameItem(deviceId: string, filePath: string, newName: string) {
+  const params = new URLSearchParams({ path: filePath });
+  return request<{ message: string; newPath: string }>(`/api/devices/${deviceId}/files?${params.toString()}`, {
+    method: "PATCH",
+    body: JSON.stringify({ newName }),
+  });
+}
+
 export function getDownloadUrl(deviceId: string, filePath: string) {
   const params = new URLSearchParams({ path: filePath });
   return `${API_URL}/api/devices/${deviceId}/download?${params.toString()}`;
