@@ -4,7 +4,7 @@ import Setup from "./screens/Setup";
 import Ready from "./screens/Ready";
 import { API_URL, apiFetch, setToken, getToken } from "./lib/api";
 
-type Screen = "loading" | "login" | "setup" | "ready";
+type Screen = "loading" | "login" | "setup" | "folder-missing" | "ready";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ipc = () => (window as any).require("electron").ipcRenderer;
@@ -72,7 +72,7 @@ export default function App() {
     );
   }
 
-  async function reconnectWithConfig(config: { deviceId: string; folderPath: string; deviceName?: string }) {
+  async function reconnectWithConfig(config: { deviceId: string; folderPath: string; deviceName?: string }): Promise<boolean> {
     deviceIdRef.current = config.deviceId;
 
     // Recover sharedFolderPath from the server when local config is missing it
@@ -91,11 +91,48 @@ export default function App() {
       connectSocket(config.deviceId);
     } catch { /* go to ready anyway */ }
 
+    // If a folder path is configured but no longer exists on disk, prompt re-pick
+    if (folderPath) {
+      const exists: boolean = await ipc().invoke("folder:exists", folderPath);
+      if (!exists) return false;
+    }
+
     folderPathRef.current = folderPath;
     if (folderPath) ipc().invoke("socket:set-folder", folderPath);
     await pushStorageUpdate(config.deviceId, folderPath);
     await pushFileSync(config.deviceId, folderPath);
     startStorageSync(config.deviceId, folderPath);
+    return true;
+  }
+
+  async function handleRePickFolder() {
+    const dir: string | null = await ipc().invoke("dialog:pick-folder");
+    if (!dir) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const nodePath = w.require("path");
+    const nodeFs = w.require("fs");
+    const folderPath: string = nodePath.join(dir, "PC2CLOUD");
+    nodeFs.mkdirSync(folderPath, { recursive: true });
+
+    const config = await ipc().invoke("config:read");
+    const deviceId = deviceIdRef.current;
+    await ipc().invoke("config:write", { ...config, folderPath });
+
+    folderPathRef.current = folderPath;
+    ipc().invoke("socket:set-folder", folderPath);
+
+    // Update server with new folder path
+    apiFetch(`${API_URL}/api/devices/${deviceId}/storage`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sharedFolderPath: folderPath }),
+    }).catch(() => {});
+
+    pushStorageUpdate(deviceId, folderPath);
+    pushFileSync(deviceId, folderPath);
+    startStorageSync(deviceId, folderPath);
+    setScreen("ready");
   }
 
   // Watch folder for changes while on the ready screen
@@ -111,11 +148,17 @@ export default function App() {
       pushFileSync(deviceId, folderPath);
       pushStorageUpdate(deviceId, folderPath);
     };
+    const missingHandler = () => {
+      if (storageSyncRef.current) clearInterval(storageSyncRef.current);
+      setScreen("folder-missing");
+    };
     ipc().on("folder:changed", handler);
+    ipc().on("folder:missing", missingHandler);
 
     return () => {
       ipc().invoke("folder:unwatch");
       ipc().removeListener("folder:changed", handler);
+      ipc().removeListener("folder:missing", missingHandler);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen]);
@@ -134,8 +177,8 @@ export default function App() {
       }
 
       if (config?.deviceId) {
-        await reconnectWithConfig(config);
-        setScreen("ready");
+        const ok = await reconnectWithConfig(config);
+        setScreen(ok ? "ready" : "folder-missing");
         return;
       }
 
@@ -145,10 +188,10 @@ export default function App() {
           const data = await res.json();
           if (data.devices?.length > 0) {
             const device = data.devices[0];
-            const saved = { deviceId: device.deviceId, folderPath: "", deviceName: device.deviceName };
+            const saved = { deviceId: device.deviceId, folderPath: config?.folderPath || "", deviceName: device.deviceName };
             await ipc().invoke("config:write", saved);
-            await reconnectWithConfig(saved);
-            setScreen("ready");
+            const ok = await reconnectWithConfig(saved);
+            setScreen(ok ? "ready" : "folder-missing");
             return;
           }
         }
@@ -166,9 +209,9 @@ export default function App() {
   async function handleLoginDone() {
     const config = await ipc().invoke("config:read");
     if (config?.deviceId) {
-      await reconnectWithConfig(config);
+      const ok = await reconnectWithConfig(config);
       setHasConfig(false);
-      setScreen("ready");
+      setScreen(ok ? "ready" : "folder-missing");
       return;
     }
 
@@ -178,17 +221,24 @@ export default function App() {
         const data = await res.json();
         if (data.devices?.length > 0) {
           const device = data.devices[0];
-          const saved = { deviceId: device.deviceId, folderPath: "", deviceName: device.deviceName };
+          const saved = { deviceId: device.deviceId, folderPath: config?.folderPath || "", deviceName: device.deviceName };
           await ipc().invoke("config:write", saved);
-          await reconnectWithConfig(saved);
+          const ok = await reconnectWithConfig(saved);
           setHasConfig(false);
-          setScreen("ready");
+          setScreen(ok ? "ready" : "folder-missing");
           return;
         }
       }
     } catch { /* fall through */ }
 
     setScreen("setup");
+  }
+
+  async function handleSetupLogout() {
+    await apiFetch(`${API_URL}/api/auth/logout`, { method: "POST" }).catch(() => {});
+    await ipc().invoke("config:clear");
+    setToken("");
+    setScreen("login");
   }
 
   function handleSetupDone(deviceId: string, folderPath: string) {
@@ -206,7 +256,10 @@ export default function App() {
     ipc().invoke("folder:unwatch");
     ipc().invoke("socket:disconnect");
     if (storageSyncRef.current) clearInterval(storageSyncRef.current);
+    const savedFolderPath = folderPathRef.current;
     await ipc().invoke("config:clear");
+    // Preserve folderPath so reconnect can skip asking the server (or catching a stale path)
+    if (savedFolderPath) await ipc().invoke("config:write", { folderPath: savedFolderPath });
     setToken("");
     setHasConfig(false);
     setScreen("login");
@@ -239,7 +292,25 @@ export default function App() {
           </div>
         )}
         {screen === "login" && <Login onDone={handleLoginDone} />}
-        {screen === "setup" && <Setup onDone={handleSetupDone} />}
+        {screen === "setup" && <Setup onDone={handleSetupDone} onLogout={handleSetupLogout} />}
+        {screen === "folder-missing" && (
+          <div className="flex flex-1 flex-col justify-center gap-5">
+            <div>
+              <h2 className="text-xl font-semibold">Folder not found</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your PC2CLOUD folder was moved or deleted. Pick a new location to continue.
+              </p>
+            </div>
+            <button
+              onClick={handleRePickFolder}
+              className="flex h-28 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border transition-colors hover:border-primary hover:bg-primary/5"
+            >
+              <span className="text-2xl">📁</span>
+              <span className="text-sm font-medium">Choose new folder location</span>
+              <span className="text-xs text-muted-foreground">A PC2CLOUD subfolder will be created here</span>
+            </button>
+          </div>
+        )}
         {screen === "ready" && (
           <Ready
             onDisconnect={handleDisconnect}

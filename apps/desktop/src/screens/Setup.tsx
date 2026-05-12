@@ -12,7 +12,7 @@ function formatGB(bytes: number) {
 
 type Step = "pick" | "confirm" | "setting-up" | "done";
 
-export default function Setup({ onDone }: { onDone: (deviceId: string, folderPath: string) => void }) {
+export default function Setup({ onDone, onLogout }: { onDone: (deviceId: string, folderPath: string) => void; onLogout: () => void }) {
   const [step, setStep] = useState<Step>("pick");
   const [selectedDir, setSelectedDir] = useState("");
   const [diskInfo, setDiskInfo] = useState<{ free: number; total: number } | null>(null);
@@ -84,10 +84,23 @@ export default function Setup({ onDone }: { onDone: (deviceId: string, folderPat
 
   return (
     <div className="flex flex-1 flex-col justify-center">
-      <h2 className="text-xl font-semibold">Set up your storage</h2>
-      <p className="mt-1 text-sm text-muted-foreground mb-6">
-        Choose a folder location for your PC2CLOUD drive.
-      </p>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-semibold">Set up your storage</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Choose a folder location for your PC2CLOUD drive.
+          </p>
+        </div>
+        {step !== "done" && (
+          <button
+            type="button"
+            onClick={onLogout}
+            className="text-xs text-muted-foreground hover:text-foreground shrink-0 mt-1"
+          >
+            Sign out
+          </button>
+        )}
+      </div>
 
       {step === "pick" && (
         <button

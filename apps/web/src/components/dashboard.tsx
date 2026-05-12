@@ -31,6 +31,7 @@ import { io, Socket } from "socket.io-client";
 import {
   ApiError,
   AuthMode,
+  AuthScreen,
   CloudFile,
   Device,
   authenticateUser,
@@ -44,9 +45,12 @@ import {
   logoutUser,
   moveItem,
   renameItem,
+  resetPassword,
   searchDeviceFiles,
+  sendOtp,
   unlinkDevice,
   updateDeviceName,
+  verifyEmail,
 } from "@/lib/api";
 
 type Section = "devices" | "storage" | "security";
@@ -106,6 +110,12 @@ function buildBreadcrumbs(path: string) {
 export function Dashboard() {
   const [activeSection, setActiveSection] = useState<Section>("devices");
   const [mode, setMode] = useState<AuthMode>("login");
+  const [authScreen, setAuthScreen] = useState<AuthScreen>("credentials");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -279,6 +289,33 @@ export function Dashboard() {
     } finally { setIsLoading(false); }
   }
 
+  function getOtp() { return otpDigits.join(""); }
+
+  function handleOtpInput(i: number, value: string) {
+    // Handle paste of full 6-digit code
+    if (value.length > 1) {
+      const digits = value.replace(/\D/g, "").slice(0, 6).split("");
+      const next = ["", "", "", "", "", ""];
+      digits.forEach((d, idx) => { next[idx] = d; });
+      setOtpDigits(next);
+      otpRefs.current[Math.min(digits.length, 5)]?.focus();
+      return;
+    }
+    if (!/^[0-9]?$/.test(value)) return;
+    const next = [...otpDigits];
+    next[i] = value;
+    setOtpDigits(next);
+    if (value && i < 5) otpRefs.current[i + 1]?.focus();
+  }
+
+  function handleOtpKeyDown(i: number, e: React.KeyboardEvent) {
+    if (e.key === "Backspace" && !otpDigits[i] && i > 0) {
+      otpRefs.current[i - 1]?.focus();
+    }
+  }
+
+  function resetOtp() { setOtpDigits(["", "", "", "", "", ""]); otpRefs.current[0]?.focus(); }
+
   async function handleAuth(event: React.BaseSyntheticEvent) {
     event.preventDefault();
     setIsLoading(true);
@@ -289,13 +326,100 @@ export function Dashboard() {
         email,
         password,
       });
-      setUser(data.user);
+      if (data.requiresVerification) {
+        setPendingEmail(email);
+        resetOtp();
+        setAuthScreen("verify-email");
+        return;
+      }
+      setUser(data.user ?? null);
       setIsAuthenticated(true);
       setPassword("");
       const devData = await getDevices();
       setDevices(devData.devices);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 403) {
+        setPendingEmail(email);
+        resetOtp();
+        setAuthScreen("verify-email");
+        return;
+      }
       setAuthMessage(error instanceof Error ? error.message : "Authentication failed");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleVerifyEmail(event: React.BaseSyntheticEvent) {
+    event.preventDefault();
+    setIsLoading(true);
+    setAuthMessage("");
+    try {
+      const data = await verifyEmail(pendingEmail, getOtp());
+      setUser(data.user);
+      setIsAuthenticated(true);
+      setPassword("");
+      setAuthScreen("credentials");
+      const devData = await getDevices();
+      setDevices(devData.devices);
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Verification failed");
+      resetOtp();
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleResendOtp(type: "verify" | "reset") {
+    setIsLoading(true);
+    setAuthMessage("");
+    try {
+      await sendOtp(pendingEmail, type);
+      resetOtp();
+      showToast("New code sent to your email");
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Could not resend code");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleForgotEmail(event: React.BaseSyntheticEvent) {
+    event.preventDefault();
+    setIsLoading(true);
+    setAuthMessage("");
+    try {
+      await sendOtp(pendingEmail, "reset");
+      resetOtp();
+      setNewPassword("");
+      setConfirmPassword("");
+      setAuthScreen("reset-password");
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Could not send code");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleResetPassword(event: React.BaseSyntheticEvent) {
+    event.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setAuthMessage("Passwords do not match");
+      return;
+    }
+    setIsLoading(true);
+    setAuthMessage("");
+    try {
+      await resetPassword(pendingEmail, getOtp(), newPassword);
+      setAuthScreen("credentials");
+      setMode("login");
+      setNewPassword("");
+      setConfirmPassword("");
+      resetOtp();
+      showToast("Password reset! You can now log in.");
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Reset failed");
+      resetOtp();
     } finally {
       setIsLoading(false);
     }
@@ -766,64 +890,139 @@ export function Dashboard() {
             </div>
           </div>
 
-          <form
-            onSubmit={handleAuth}
-            className="rounded-md border border-border bg-white p-5 shadow-soft"
-          >
-            <div className="grid grid-cols-2 rounded-md bg-muted p-1 text-sm">
-              <button
-                type="button"
-                onClick={() => setMode("login")}
-                className={`rounded-md px-3 py-2 font-medium ${mode === "login" ? "bg-white shadow-sm" : "text-muted-foreground"}`}
-              >
-                Login
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("register")}
-                className={`rounded-md px-3 py-2 font-medium ${mode === "register" ? "bg-white shadow-sm" : "text-muted-foreground"}`}
-              >
-                Register
-              </button>
-            </div>
-
-            <div className="mt-4 grid gap-3">
-              {mode === "register" && (
-                <input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Username"
-                  className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary"
-                />
+          {/* ── Login / Register ── */}
+          {authScreen === "credentials" && (
+            <form onSubmit={handleAuth} className="rounded-md border border-border bg-white p-5 shadow-soft">
+              <div className="grid grid-cols-2 rounded-md bg-muted p-1 text-sm">
+                <button type="button" onClick={() => setMode("login")}
+                  className={`rounded-md px-3 py-2 font-medium ${mode === "login" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>
+                  Login
+                </button>
+                <button type="button" onClick={() => setMode("register")}
+                  className={`rounded-md px-3 py-2 font-medium ${mode === "register" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>
+                  Register
+                </button>
+              </div>
+              <div className="mt-4 grid gap-3">
+                {mode === "register" && (
+                  <input value={username} onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username"
+                    className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+                )}
+                <input value={email} onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email" type="email"
+                  className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+                <input value={password} onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password" type="password"
+                  className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+              </div>
+              {mode === "login" && (
+                <button type="button"
+                  onClick={() => { setPendingEmail(email); setAuthMessage(""); setAuthScreen("forgot-email"); }}
+                  className="mt-2 text-xs text-muted-foreground hover:text-foreground">
+                  Forgot password?
+                </button>
               )}
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                type="email"
-                className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary"
-              />
-              <input
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                type="password"
-                className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary"
-              />
-            </div>
+              <button disabled={isLoading}
+                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-60">
+                {mode === "login" ? <LogIn size={17} aria-hidden="true" /> : <UserPlus size={17} aria-hidden="true" />}
+                {isLoading ? "Please wait…" : mode === "login" ? "Login" : "Create account"}
+              </button>
+              {authMessage && <p className="mt-3 text-sm text-red-600">{authMessage}</p>}
+            </form>
+          )}
 
-            <button
-              disabled={isLoading}
-              className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-60"
-            >
-              {mode === "login" ? <LogIn size={17} aria-hidden="true" /> : <UserPlus size={17} aria-hidden="true" />}
-              {mode === "login" ? "Login" : "Create account"}
-            </button>
+          {/* ── Verify email OTP ── */}
+          {authScreen === "verify-email" && (
+            <form onSubmit={handleVerifyEmail} className="rounded-md border border-border bg-white p-5 shadow-soft">
+              <h2 className="font-semibold">Verify your email</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Enter the 6-digit code sent to <span className="font-medium text-foreground">{pendingEmail}</span>
+              </p>
+              <div className="mt-5 flex justify-between gap-2">
+                {otpDigits.map((d, i) => (
+                  <input key={i}
+                    ref={(el) => { otpRefs.current[i] = el; }}
+                    type="text" inputMode="numeric" maxLength={6} value={d}
+                    onChange={(e) => handleOtpInput(i, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                    className="h-12 w-full rounded-md border border-border text-center text-lg font-semibold outline-none focus:border-primary" />
+                ))}
+              </div>
+              {authMessage && <p className="mt-3 text-sm text-red-600">{authMessage}</p>}
+              <button disabled={isLoading || getOtp().length < 6}
+                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary font-semibold text-primary-foreground disabled:opacity-60">
+                {isLoading ? "Verifying…" : "Verify"}
+              </button>
+              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                <button type="button" onClick={() => handleResendOtp("verify")} disabled={isLoading}
+                  className="hover:text-foreground disabled:opacity-50">Resend code</button>
+                <button type="button" onClick={() => { setAuthScreen("credentials"); setAuthMessage(""); }}
+                  className="hover:text-foreground">Back to login</button>
+              </div>
+            </form>
+          )}
 
-            {authMessage && (
-              <p className="mt-3 text-sm text-red-600">{authMessage}</p>
-            )}
-          </form>
+          {/* ── Forgot password — enter email ── */}
+          {authScreen === "forgot-email" && (
+            <form onSubmit={handleForgotEmail} className="rounded-md border border-border bg-white p-5 shadow-soft">
+              <h2 className="font-semibold">Forgot password</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Enter your email and we&apos;ll send you a reset code.
+              </p>
+              <input value={pendingEmail} onChange={(e) => setPendingEmail(e.target.value)}
+                placeholder="Email" type="email" required
+                className="mt-4 h-11 w-full rounded-md border border-border px-3 outline-none focus:border-primary" />
+              {authMessage && <p className="mt-3 text-sm text-red-600">{authMessage}</p>}
+              <button disabled={isLoading}
+                className="mt-4 flex h-11 w-full items-center justify-center rounded-md bg-primary font-semibold text-primary-foreground disabled:opacity-60">
+                {isLoading ? "Sending…" : "Send code"}
+              </button>
+              <button type="button" onClick={() => { setAuthScreen("credentials"); setAuthMessage(""); }}
+                className="mt-3 w-full text-center text-xs text-muted-foreground hover:text-foreground">
+                Back to login
+              </button>
+            </form>
+          )}
+
+          {/* ── Reset password — OTP + new password ── */}
+          {authScreen === "reset-password" && (
+            <form onSubmit={handleResetPassword} className="rounded-md border border-border bg-white p-5 shadow-soft">
+              <h2 className="font-semibold">Reset password</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Code sent to <span className="font-medium text-foreground">{pendingEmail}</span>
+              </p>
+              <div className="mt-5 flex justify-between gap-2">
+                {otpDigits.map((d, i) => (
+                  <input key={i}
+                    ref={(el) => { otpRefs.current[i] = el; }}
+                    type="text" inputMode="numeric" maxLength={6} value={d}
+                    onChange={(e) => handleOtpInput(i, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                    className="h-12 w-full rounded-md border border-border text-center text-lg font-semibold outline-none focus:border-primary" />
+                ))}
+              </div>
+              <div className="mt-3 grid gap-3">
+                <input value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New password" type="password" required minLength={6}
+                  className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+                <input value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password" type="password" required
+                  className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+              </div>
+              {authMessage && <p className="mt-3 text-sm text-red-600">{authMessage}</p>}
+              <button disabled={isLoading || getOtp().length < 6}
+                className="mt-4 flex h-11 w-full items-center justify-center rounded-md bg-primary font-semibold text-primary-foreground disabled:opacity-60">
+                {isLoading ? "Resetting…" : "Reset password"}
+              </button>
+              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                <button type="button" onClick={() => handleResendOtp("reset")} disabled={isLoading}
+                  className="hover:text-foreground disabled:opacity-50">Resend code</button>
+                <button type="button" onClick={() => { setAuthScreen("forgot-email"); setAuthMessage(""); resetOtp(); }}
+                  className="hover:text-foreground">Back</button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     );
@@ -931,7 +1130,7 @@ export function Dashboard() {
               {[
                 { label: "Connected PCs", value: devices.length },
                 { label: "Online now", value: onlineDevices },
-                { label: "Total storage", value: formatBytes(totalStorage) },
+                { label: "Total storage", value: formatBytesDetailed(totalStorage) },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded-md border border-border bg-white p-4">
                   <p className="text-sm text-muted-foreground">{label}</p>

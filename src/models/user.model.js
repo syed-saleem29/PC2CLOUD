@@ -12,12 +12,18 @@ const userSchema = new mongoose.Schema({
         lowercase: true,
         trim: true,
         required: [true, "Email is required"]
-
     },
     password:{
         type:String,
         required: [true, "Password is required"]
-    }
+    },
+    isEmailVerified: {
+        type: Boolean,
+        // no default — existing users without this field are treated as verified
+    },
+    otp: { type: String, default: null },
+    otpExpiry: { type: Date, default: null },
+    otpType: { type: String, enum: ["verify", "reset"], default: null },
 })
 
 const userModel = mongoose.model("users",userSchema)

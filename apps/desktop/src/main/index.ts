@@ -437,17 +437,41 @@ ipcMain.handle("folder:scan", (_, folderPath: string) => scanFolder(folderPath))
 ipcMain.handle("folder:watch", (_, folderPath: string) => {
   if (folderWatcher) { folderWatcher.close(); folderWatcher = null; }
   if (!fs.existsSync(folderPath)) return;
-  folderWatcher = fs.watch(folderPath, { recursive: true }, () => {
-    if (watchDebounce) clearTimeout(watchDebounce);
-    watchDebounce = setTimeout(() => {
-      mainWindow?.webContents.send("folder:changed");
-    }, 1500);
-  });
+  try {
+    folderWatcher = fs.watch(folderPath, { recursive: true }, () => {
+      if (!fs.existsSync(folderPath)) {
+        folderWatcher?.close();
+        folderWatcher = null;
+        if (watchDebounce) { clearTimeout(watchDebounce); watchDebounce = null; }
+        mainWindow?.webContents.send("folder:missing");
+        return;
+      }
+      if (watchDebounce) clearTimeout(watchDebounce);
+      watchDebounce = setTimeout(() => {
+        if (!fs.existsSync(folderPath)) {
+          mainWindow?.webContents.send("folder:missing");
+          return;
+        }
+        mainWindow?.webContents.send("folder:changed");
+      }, 1500);
+    });
+    folderWatcher.on("error", () => {
+      folderWatcher?.close();
+      folderWatcher = null;
+      mainWindow?.webContents.send("folder:missing");
+    });
+  } catch {
+    mainWindow?.webContents.send("folder:missing");
+  }
 });
 
 ipcMain.handle("folder:unwatch", () => {
   if (folderWatcher) { folderWatcher.close(); folderWatcher = null; }
   if (watchDebounce) { clearTimeout(watchDebounce); watchDebounce = null; }
+});
+
+ipcMain.handle("folder:exists", (_, folderPath: string) => {
+  return folderPath ? fs.existsSync(folderPath) : false;
 });
 
 ipcMain.handle("file:read", async (_, absolutePath: string) => {

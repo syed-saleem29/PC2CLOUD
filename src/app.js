@@ -44,4 +44,12 @@ app.get("/api/releases/latest", (req, res) => {
   }
 })
 
+// Global JSON error handler — must be last, after all routes
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal server error";
+  res.status(status).json({ message });
+});
+
 module.exports = app

@@ -1,4 +1,5 @@
 export type AuthMode = "login" | "register";
+export type AuthScreen = "credentials" | "verify-email" | "forgot-email" | "reset-password";
 
 export type Device = {
   deviceId: string;
@@ -58,13 +59,34 @@ export function authenticateUser(
   mode: AuthMode,
   payload: { username?: string; email: string; password: string },
 ) {
-  return request<{ message: string; user: { userName?: string; userEmail: string } }>(
-    `/api/auth/${mode}`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
+  return request<{
+    message: string;
+    user?: { userName?: string; userEmail: string };
+    requiresVerification?: boolean;
+    email?: string;
+    token?: string;
+  }>(`/api/auth/${mode}`, { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function sendOtp(email: string, type: "verify" | "reset") {
+  return request<{ message: string }>("/api/auth/send-otp", {
+    method: "POST",
+    body: JSON.stringify({ email, type }),
+  });
+}
+
+export function verifyEmail(email: string, otp: string) {
+  return request<{ message: string; user: { userName?: string; userEmail: string }; token: string }>(
+    "/api/auth/verify-email",
+    { method: "POST", body: JSON.stringify({ email, otp }) },
   );
+}
+
+export function resetPassword(email: string, otp: string, newPassword: string) {
+  return request<{ message: string }>("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email, otp, newPassword }),
+  });
 }
 
 export function logoutUser() {
