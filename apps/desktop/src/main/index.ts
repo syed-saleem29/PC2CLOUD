@@ -350,7 +350,7 @@ ipcMain.handle("dialog:pick-folder", async () => {
 });
 
 ipcMain.handle("app:open-dashboard", () => {
-  shell.openExternal(process.env["VITE_DASHBOARD_URL"] ?? "http://localhost:8000");
+  shell.openExternal(process.env.VITE_DASHBOARD_URL ?? "http://localhost:8000");
 });
 
 ipcMain.handle("app:minimize-tray", () => {
