@@ -1068,7 +1068,10 @@ export function Dashboard() {
           <p className="text-sm font-medium">Windows app</p>
           <p className="mt-0.5 text-xs text-muted-foreground">One-click installer</p>
           <a
-            href={`${API_URL}/releases/PC2CLOUD%20Setup%200.1.0.exe`}
+            href="https://github.com/syed-saleem29/PC2CLOUD/releases/download/v0.1.0/PC2CLOUD.Setup.0.1.0.exe"
+            target="_blank"
+            rel="noreferrer"
+            download
             className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted/50"
           >
             <ArrowDownToLine size={13} aria-hidden="true" />
