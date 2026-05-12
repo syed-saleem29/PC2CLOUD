@@ -13,6 +13,8 @@ app.use(cors(corsOptions))
 app.use(express.json())
 app.use(cookieParser())
 
+app.get("/", (req, res) => res.json({ status: "ok" }))
+
 app.use("/api/auth",authRouter)
 app.use("/api/devices", deviceRouter)
 app.use("/api/transfer", transferRouter)
