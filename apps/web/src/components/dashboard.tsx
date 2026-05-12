@@ -320,6 +320,10 @@ export function Dashboard() {
 
   async function handleAuth(event: React.BaseSyntheticEvent) {
     event.preventDefault();
+    if (mode === "register" && password !== confirmPassword) {
+      setAuthMessage("Passwords do not match");
+      return;
+    }
     setIsLoading(true);
     setAuthMessage("");
     try {
@@ -899,11 +903,11 @@ export function Dashboard() {
           {authScreen === "credentials" && (
             <form onSubmit={handleAuth} className="rounded-md border border-border bg-white p-5 shadow-soft">
               <div className="grid grid-cols-2 rounded-md bg-muted p-1 text-sm">
-                <button type="button" onClick={() => setMode("login")}
+                <button type="button" onClick={() => { setMode("login"); setConfirmPassword(""); setAuthMessage(""); }}
                   className={`rounded-md px-3 py-2 font-medium ${mode === "login" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>
                   Login
                 </button>
-                <button type="button" onClick={() => setMode("register")}
+                <button type="button" onClick={() => { setMode("register"); setAuthMessage(""); }}
                   className={`rounded-md px-3 py-2 font-medium ${mode === "register" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>
                   Register
                 </button>
@@ -920,6 +924,11 @@ export function Dashboard() {
                 <input value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password" type="password"
                   className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+                {mode === "register" && (
+                  <input value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm password" type="password"
+                    className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+                )}
               </div>
               {mode === "login" && (
                 <button type="button"
