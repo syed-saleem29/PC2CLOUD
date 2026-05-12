@@ -10,7 +10,8 @@
     "web:build": "npm run build --prefix apps/web",
     "web:typecheck": "npm run typecheck --prefix apps/web",
     "desktop:dev": "npm run dev --prefix apps/desktop",
-    "desktop:build": "npm run build --prefix apps/desktop"
+    "desktop:build": "npm run build --prefix apps/desktop",
+    "desktop:release": "node scripts/release.mjs"
   },
   "repository": {
     "type": "git",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "png-to-ico": "^3.0.1",
+    "rcedit": "^5.0.2",
     "sharp": "^0.34.5"
   }
 }

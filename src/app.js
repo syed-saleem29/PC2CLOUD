@@ -20,6 +20,8 @@ app.use("/api/transfer", transferRouter)
 // Serve installer files for download + auto-updater
 app.use("/releases", express.static(path.join(__dirname, "../releases"), {
   setHeaders(res, filePath) {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
     if (filePath.endsWith(".exe")) {
       res.setHeader("Content-Disposition", `attachment; filename="${path.basename(filePath)}"`);
     }

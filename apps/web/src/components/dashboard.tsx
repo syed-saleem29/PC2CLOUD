@@ -829,9 +829,7 @@ export function Dashboard() {
       {/* Sidebar */}
       <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-white">
         <div className="flex items-center gap-2.5 px-4 py-5">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Cloud size={16} aria-hidden="true" />
-          </div>
+          <img src="/icon-192.png" alt="PC2CLOUD" className="size-8 rounded-md" />
           <p className="font-semibold">PC2CLOUD</p>
         </div>
 

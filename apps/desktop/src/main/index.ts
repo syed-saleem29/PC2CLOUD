@@ -1,11 +1,24 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } from "electron";
 import { join, dirname, resolve } from "path";
+import { tmpdir } from "os";
 import fs from "fs";
 import checkDiskSpace from "check-disk-space";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { io: socketIo } = require("socket.io-client");
 
 const isDev = process.env.NODE_ENV === "development";
+
+// app.getPath("userData") is safe before ready in Electron 7+, but guard anyway
+let logFile: string;
+try {
+  logFile = join(app.getPath("userData"), "startup.log");
+} catch {
+  logFile = join(tmpdir(), "pc2cloud-startup.log");
+}
+function log(msg: string) {
+  try { fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`); } catch { /* ignore */ }
+}
+log("app started");
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -35,7 +48,9 @@ function createWindow(): void {
     },
   });
 
-  mainWindow.on("ready-to-show", () => mainWindow?.show());
+  mainWindow.on("ready-to-show", () => { log("ready-to-show"); mainWindow?.show(); });
+  mainWindow.webContents.on("render-process-gone", (_, details) => log(`renderer-gone: ${JSON.stringify(details)}`));
+  mainWindow.webContents.on("did-fail-load", (_, code, desc) => log(`did-fail-load: ${code} ${desc}`));
 
   mainWindow.on("close", (event) => {
     if (tray) {
@@ -96,7 +111,9 @@ async function checkForUpdates(): Promise<void> {
 }
 
 app.whenReady().then(() => {
+  log("app ready");
   createWindow();
+  log("window created");
   setTimeout(() => checkForUpdates(), 8000);
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -104,6 +121,7 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  log("window-all-closed fired");
   if (process.platform !== "darwin") app.quit();
 });
 
