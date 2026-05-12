@@ -28,6 +28,19 @@ export type CloudFile = {
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7000";
+const TOKEN_KEY = "pc2cloud_token";
+
+export function setWebToken(token: string) {
+  try { localStorage.setItem(TOKEN_KEY, token); } catch {}
+}
+
+export function clearWebToken() {
+  try { localStorage.removeItem(TOKEN_KEY); } catch {}
+}
+
+function getWebToken(): string | null {
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -37,11 +50,13 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getWebToken();
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
