@@ -68,8 +68,17 @@ function formatBytes(bytes: number) {
 }
 
 function storagePercent(device: Device) {
-  if (!device.storageLimitBytes) return 0;
-  return Math.min(100, Math.round((device.usedStorageBytes / device.storageLimitBytes) * 100));
+  const total = device.usedStorageBytes + device.storageLimitBytes;
+  if (!total) return 0;
+  return Math.min(100, (device.usedStorageBytes / total) * 100);
+}
+
+function formatBytesDetailed(bytes: number) {
+  if (!bytes || bytes <= 0) return "0 B";
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  return `${bytes} B`;
 }
 
 
@@ -166,7 +175,7 @@ export function Dashboard() {
   }
 
   const totalStorage = useMemo(
-    () => devices.reduce((sum, d) => sum + d.storageLimitBytes, 0),
+    () => devices.reduce((sum, d) => sum + d.usedStorageBytes + d.storageLimitBytes, 0),
     [devices],
   );
   const onlineDevices = devices.filter((d) => d.status === "online").length;
@@ -1039,15 +1048,33 @@ export function Dashboard() {
                       {/* Storage bar */}
                       <div className="mt-4">
                         <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{formatBytes(device.usedStorageBytes)} used</span>
-                          <span className="font-medium text-foreground">
-                            {formatBytes(device.storageLimitBytes)} available
-                          </span>
+                          <span>{formatBytesDetailed(device.usedStorageBytes)} used</span>
+                          {device.storageLimitBytes > 0 && (
+                            <div className="group relative">
+                              <span className="cursor-default font-medium text-foreground">
+                                {formatBytesDetailed(device.storageLimitBytes)} free
+                              </span>
+                              <div className="pointer-events-none absolute bottom-5 right-0 z-10 hidden w-48 rounded-md border border-border bg-white p-2.5 shadow-md group-hover:block">
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">Used</span>
+                                  <span className="font-medium text-foreground">{formatBytesDetailed(device.usedStorageBytes)}</span>
+                                </div>
+                                <div className="mt-1 flex justify-between gap-2">
+                                  <span className="text-muted-foreground">Free</span>
+                                  <span className="font-medium text-green-600">{formatBytesDetailed(device.storageLimitBytes)}</span>
+                                </div>
+                                <div className="mt-1.5 flex justify-between gap-2 border-t border-border pt-1.5">
+                                  <span className="text-muted-foreground">Total</span>
+                                  <span className="font-medium text-foreground">{formatBytesDetailed(device.usedStorageBytes + device.storageLimitBytes)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
                           <div
                             className="h-full rounded-full bg-primary transition-all"
-                            style={{ width: `${percent}%` }}
+                            style={{ width: device.usedStorageBytes > 0 ? `max(4px, ${percent}%)` : "0%" }}
                           />
                         </div>
                       </div>

@@ -2,7 +2,6 @@ import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } f
 import { join, dirname, resolve } from "path";
 import { tmpdir } from "os";
 import fs from "fs";
-import checkDiskSpace from "check-disk-space";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { io: socketIo } = require("socket.io-client");
 
@@ -484,6 +483,13 @@ ipcMain.handle("storage:get-info", async (_, folderPath: string) => {
   }
 
   const used = fs.existsSync(folderPath) ? folderSize(folderPath) : 0;
-  const disk = await checkDiskSpace(folderPath);
-  return { usedStorageBytes: used, storageLimitBytes: disk.size };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+    const _mod = require("check-disk-space") as any;
+    const cds: (p: string) => Promise<{ free: number; size: number }> = _mod.default ?? _mod;
+    const disk = await cds(folderPath);
+    return { usedStorageBytes: used, storageLimitBytes: disk.free };
+  } catch {
+    return { usedStorageBytes: used };
+  }
 });
