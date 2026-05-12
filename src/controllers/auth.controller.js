@@ -3,10 +3,11 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendOtpEmail } = require("../services/email.service");
 
+const isProd = process.env.NODE_ENV === "production";
 const authCookieOptions = {
   httpOnly: true,
-  sameSite: "lax",
-  secure: process.env.NODE_ENV === "production",
+  sameSite: isProd ? "none" : "lax",
+  secure: isProd,
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
@@ -93,11 +94,7 @@ async function loginController(req, res) {
 }
 
 async function logoutController(req, res) {
-  res.clearCookie("PTC_Token", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
+  res.clearCookie("PTC_Token", authCookieOptions);
   res.status(200).json({ message: "Logged out successfully" });
 }
 
