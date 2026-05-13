@@ -163,6 +163,16 @@ async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> 
 function getNodePath() { return require("path") as typeof import("path"); }
 function getNodeFs()   { return require("fs")   as typeof import("fs"); }
 
+function getFolder(): string {
+  if (sharedFolderPath) return sharedFolderPath;
+  try {
+    const configPath = join(app.getPath("userData"), "pc2cloud.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    if (config.folderPath) { sharedFolderPath = config.folderPath; return sharedFolderPath; }
+  } catch { /* no config */ }
+  return "";
+}
+
 function safeResolve(folder: string, relPath: string): string | null {
   const nodePath = getNodePath();
   const resolved = nodePath.resolve(nodePath.join(folder, relPath));
@@ -190,7 +200,7 @@ function getMimeTypeMain(name: string): string {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function handleFileRequest(requestId: string, filePath: string): void {
-  const folder = sharedFolderPath;
+  const folder = getFolder();
   const resolved = folder ? safeResolve(folder, filePath) : null;
   if (!resolved) {
     apiFetch(`${apiBaseUrl}/api/transfer/${requestId}/error`, {
@@ -226,7 +236,7 @@ function handleFileRequest(requestId: string, filePath: string): void {
 }
 
 async function handleFileUpload(requestId: string, filePath: string): Promise<void> {
-  const folder = sharedFolderPath;
+  const folder = getFolder();
   const resolved = folder ? safeResolve(folder, filePath) : null;
   const rejectUpload = (msg: string) =>
     apiFetch(`${apiBaseUrl}/api/transfer/${requestId}/write-error`, {
@@ -256,6 +266,15 @@ async function handleFileUpload(requestId: string, filePath: string): Promise<vo
 ipcMain.handle("socket:connect", (_, deviceId: string, token: string, _apiUrl: string) => {
   bearerToken = token;
   if (_apiUrl) apiBaseUrl = _apiUrl;
+
+  // Safety fallback: ensure sharedFolderPath is always set from config
+  if (!sharedFolderPath) {
+    try {
+      const configPath = join(app.getPath("userData"), "pc2cloud.json");
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      if (config.folderPath) sharedFolderPath = config.folderPath;
+    } catch { /* no config yet */ }
+  }
 
   if (deviceSocket) {
     deviceSocket.disconnect();
@@ -288,14 +307,14 @@ ipcMain.handle("socket:connect", (_, deviceId: string, token: string, _apiUrl: s
   });
 
   socket.on("folder:create", ({ folderPath }: { folderPath: string }) => {
-    const folder = sharedFolderPath;
+    const folder = getFolder();
     const resolved = folder ? safeResolve(folder, folderPath) : null;
     if (!resolved) return;
     try { getNodeFs().mkdirSync(resolved, { recursive: true }); } catch { /* ignore */ }
   });
 
   socket.on("file:delete", ({ filePath }: { filePath: string }) => {
-    const folder = sharedFolderPath;
+    const folder = getFolder();
     const resolved = folder ? safeResolve(folder, filePath) : null;
     if (!resolved) return;
     try {
@@ -305,7 +324,7 @@ ipcMain.handle("socket:connect", (_, deviceId: string, token: string, _apiUrl: s
   });
 
   socket.on("folder:delete", ({ folderPath }: { folderPath: string }) => {
-    const folder = sharedFolderPath;
+    const folder = getFolder();
     const resolved = folder ? safeResolve(folder, folderPath) : null;
     if (!resolved) return;
     try {
@@ -315,7 +334,7 @@ ipcMain.handle("socket:connect", (_, deviceId: string, token: string, _apiUrl: s
   });
 
   socket.on("file:rename", ({ oldPath, newPath }: { oldPath: string; newPath: string }) => {
-    const folder = sharedFolderPath;
+    const folder = getFolder();
     const oldResolved = folder ? safeResolve(folder, oldPath) : null;
     const newResolved = folder ? safeResolve(folder, newPath) : null;
     if (!oldResolved || !newResolved) return;
