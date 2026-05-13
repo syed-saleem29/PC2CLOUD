@@ -2,6 +2,7 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./src/**/*.{js,ts,jsx,tsx}", "./index.html"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -12,6 +13,7 @@ const config: Config = {
         "muted-foreground": "hsl(var(--muted-foreground))",
         primary: "hsl(var(--primary))",
         "primary-foreground": "hsl(var(--primary-foreground))",
+        surface: "hsl(var(--surface))",
       },
     },
   },

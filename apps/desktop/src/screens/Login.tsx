@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Cloud, LogIn } from "lucide-react";
+import { Cloud, KeyRound, LogIn, Mail, RotateCcw } from "lucide-react";
 import { API_URL, setToken } from "../lib/api";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -7,7 +7,13 @@ const ipc = () => (window as any).require("electron").ipcRenderer;
 
 type Screen = "login" | "verify-email" | "forgot-email" | "reset-password";
 
-export default function Login({ onDone }: { onDone: () => void }) {
+const inputCls =
+  "h-11 w-full rounded-xl border border-border bg-surface px-4 outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15";
+
+const btnPrimary =
+  "flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:opacity-90 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed";
+
+export default function Login({ onDone, hasConfig }: { onDone: () => void; hasConfig?: boolean }) {
   const [screen, setScreen] = useState<Screen>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,7 +47,10 @@ export default function Login({ onDone }: { onDone: () => void }) {
     if (e.key === "Backspace" && !otpDigits[i] && i > 0) otpRefs.current[i - 1]?.focus();
   }
 
-  function resetOtp() { setOtpDigits(["", "", "", "", "", ""]); setTimeout(() => otpRefs.current[0]?.focus(), 50); }
+  function resetOtp() {
+    setOtpDigits(["", "", "", "", "", ""]);
+    setTimeout(() => otpRefs.current[0]?.focus(), 50);
+  }
 
   async function apiPost(path: string, body: object) {
     const res = await fetch(`${API_URL}${path}`, {
@@ -148,119 +157,205 @@ export default function Login({ onDone }: { onDone: () => void }) {
   }
 
   const otpBoxes = (
-    <div className="flex justify-between gap-2">
+    <div className="flex gap-2">
       {otpDigits.map((d, i) => (
-        <input key={i} ref={(el) => { otpRefs.current[i] = el; }}
-          type="text" inputMode="numeric" maxLength={6} value={d}
+        <input
+          key={i}
+          ref={(el) => { otpRefs.current[i] = el; }}
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          value={d}
           onChange={(e) => handleOtpInput(i, e.target.value)}
           onKeyDown={(e) => handleOtpKeyDown(i, e)}
-          className="h-12 w-full rounded-lg border border-border text-center text-lg font-semibold outline-none focus:border-primary" />
+          className="h-12 w-full rounded-xl border border-border bg-surface text-center text-lg font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
+        />
       ))}
     </div>
   );
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center">
-      <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-        <Cloud size={24} aria-hidden="true" />
+      {/* Logo */}
+      <div className="relative mb-1">
+        <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl" />
+        <div className="relative flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-cyan-400 shadow-lg shadow-primary/30">
+          <Cloud size={26} className="text-white" aria-hidden="true" />
+        </div>
       </div>
 
-      {/* Login */}
       {screen === "login" && (
         <>
-          <h1 className="mt-3 text-xl font-semibold">Sign in to PC2CLOUD</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Use the same account as the website.</p>
+          <h1 className="mt-4 text-xl font-bold tracking-tight">
+            {hasConfig ? "Welcome back" : "Sign in to PC2CLOUD"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {hasConfig ? "Sign in to reconnect your PC." : "Use the same account as the website."}
+          </p>
           <form onSubmit={handleLogin} className="mt-6 w-full max-w-xs grid gap-3">
-            <input value={email} onChange={(e) => setEmail(e.target.value)}
-              type="email" placeholder="Email" required
-              className="h-11 rounded-lg border border-border px-4 outline-none focus:border-primary" />
-            <input value={password} onChange={(e) => setPassword(e.target.value)}
-              type="password" placeholder="Password" required
-              className="h-11 rounded-lg border border-border px-4 outline-none focus:border-primary" />
-            <button type="button"
-              onClick={() => { setPendingEmail(email); setError(""); setScreen("forgot-email"); }}
-              className="text-left text-xs text-muted-foreground hover:text-foreground">
-              Forgot password?
-            </button>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button disabled={loading}
-              className="flex h-11 items-center justify-center gap-2 rounded-lg bg-primary font-semibold text-primary-foreground disabled:opacity-60">
-              <LogIn size={17} aria-hidden="true" />
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              placeholder="Email address"
+              required
+              className={inputCls}
+            />
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              placeholder="Password"
+              required
+              className={inputCls}
+            />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => { setPendingEmail(email); setError(""); setScreen("forgot-email"); }}
+                className="text-xs text-muted-foreground transition-colors hover:text-primary"
+              >
+                Forgot password?
+              </button>
+            </div>
+            {error && (
+              <div className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-500 border border-red-500/20">
+                {error}
+              </div>
+            )}
+            <button type="submit" disabled={loading} className={btnPrimary}>
+              <LogIn size={16} aria-hidden="true" />
               {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
         </>
       )}
 
-      {/* Verify email */}
       {screen === "verify-email" && (
         <>
-          <h1 className="mt-3 text-xl font-semibold">Verify your email</h1>
+          <h1 className="mt-4 text-xl font-bold tracking-tight">Check your email</h1>
           <p className="mt-1 text-center text-sm text-muted-foreground">
-            Enter the 6-digit code sent to<br /><span className="font-medium text-foreground">{pendingEmail}</span>
+            Enter the 6-digit code sent to
+            <br />
+            <span className="font-semibold text-foreground">{pendingEmail}</span>
           </p>
           <form onSubmit={handleVerifyEmail} className="mt-6 w-full max-w-xs grid gap-3">
             {otpBoxes}
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button disabled={loading || getOtp().length < 6}
-              className="flex h-11 items-center justify-center rounded-lg bg-primary font-semibold text-primary-foreground disabled:opacity-60">
-              {loading ? "Verifying…" : "Verify"}
+            {error && (
+              <div className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-500 border border-red-500/20">
+                {error}
+              </div>
+            )}
+            <button type="submit" disabled={loading || getOtp().length < 6} className={btnPrimary}>
+              <Mail size={16} aria-hidden="true" />
+              {loading ? "Verifying…" : "Verify email"}
             </button>
             <div className="flex justify-between text-xs text-muted-foreground">
-              <button type="button" onClick={() => handleResendOtp("verify")} disabled={loading}
-                className="hover:text-foreground disabled:opacity-50">Resend code</button>
-              <button type="button" onClick={() => { setScreen("login"); setError(""); }}
-                className="hover:text-foreground">Back to login</button>
+              <button
+                type="button"
+                onClick={() => handleResendOtp("verify")}
+                disabled={loading}
+                className="transition-colors hover:text-foreground disabled:opacity-50"
+              >
+                Resend code
+              </button>
+              <button
+                type="button"
+                onClick={() => { setScreen("login"); setError(""); }}
+                className="transition-colors hover:text-foreground"
+              >
+                Back to login
+              </button>
             </div>
           </form>
         </>
       )}
 
-      {/* Forgot password — email */}
       {screen === "forgot-email" && (
         <>
-          <h1 className="mt-3 text-xl font-semibold">Forgot password</h1>
+          <h1 className="mt-4 text-xl font-bold tracking-tight">Forgot password</h1>
           <p className="mt-1 text-sm text-muted-foreground">We&apos;ll send a reset code to your email.</p>
           <form onSubmit={handleForgotEmail} className="mt-6 w-full max-w-xs grid gap-3">
-            <input value={pendingEmail} onChange={(e) => setPendingEmail(e.target.value)}
-              type="email" placeholder="Email" required
-              className="h-11 rounded-lg border border-border px-4 outline-none focus:border-primary" />
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button disabled={loading}
-              className="flex h-11 items-center justify-center rounded-lg bg-primary font-semibold text-primary-foreground disabled:opacity-60">
-              {loading ? "Sending…" : "Send code"}
+            <input
+              value={pendingEmail}
+              onChange={(e) => setPendingEmail(e.target.value)}
+              type="email"
+              placeholder="Email address"
+              required
+              className={inputCls}
+            />
+            {error && (
+              <div className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-500 border border-red-500/20">
+                {error}
+              </div>
+            )}
+            <button type="submit" disabled={loading} className={btnPrimary}>
+              <Mail size={16} aria-hidden="true" />
+              {loading ? "Sending…" : "Send reset code"}
             </button>
-            <button type="button" onClick={() => { setScreen("login"); setError(""); }}
-              className="text-center text-xs text-muted-foreground hover:text-foreground">Back to login</button>
+            <button
+              type="button"
+              onClick={() => { setScreen("login"); setError(""); }}
+              className="text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Back to login
+            </button>
           </form>
         </>
       )}
 
-      {/* Reset password */}
       {screen === "reset-password" && (
         <>
-          <h1 className="mt-3 text-xl font-semibold">Reset password</h1>
+          <h1 className="mt-4 text-xl font-bold tracking-tight">Reset password</h1>
           <p className="mt-1 text-center text-sm text-muted-foreground">
-            Code sent to <span className="font-medium text-foreground">{pendingEmail}</span>
+            Code sent to{" "}
+            <span className="font-semibold text-foreground">{pendingEmail}</span>
           </p>
           <form onSubmit={handleResetPassword} className="mt-6 w-full max-w-xs grid gap-3">
             {otpBoxes}
-            <input value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-              type="password" placeholder="New password" required minLength={6}
-              className="h-11 rounded-lg border border-border px-4 outline-none focus:border-primary" />
-            <input value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-              type="password" placeholder="Confirm new password" required
-              className="h-11 rounded-lg border border-border px-4 outline-none focus:border-primary" />
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button disabled={loading || getOtp().length < 6}
-              className="flex h-11 items-center justify-center rounded-lg bg-primary font-semibold text-primary-foreground disabled:opacity-60">
+            <input
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              type="password"
+              placeholder="New password"
+              required
+              minLength={6}
+              className={inputCls}
+            />
+            <input
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              type="password"
+              placeholder="Confirm new password"
+              required
+              className={inputCls}
+            />
+            {error && (
+              <div className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-500 border border-red-500/20">
+                {error}
+              </div>
+            )}
+            <button type="submit" disabled={loading || getOtp().length < 6} className={btnPrimary}>
+              <KeyRound size={16} aria-hidden="true" />
               {loading ? "Resetting…" : "Reset password"}
             </button>
             <div className="flex justify-between text-xs text-muted-foreground">
-              <button type="button" onClick={() => handleResendOtp("reset")} disabled={loading}
-                className="hover:text-foreground disabled:opacity-50">Resend code</button>
-              <button type="button" onClick={() => { setScreen("forgot-email"); setError(""); resetOtp(); }}
-                className="hover:text-foreground">Back</button>
+              <button
+                type="button"
+                onClick={() => handleResendOtp("reset")}
+                disabled={loading}
+                className="transition-colors hover:text-foreground disabled:opacity-50"
+              >
+                Resend code
+              </button>
+              <button
+                type="button"
+                onClick={() => { setScreen("forgot-email"); setError(""); resetOtp(); }}
+                className="transition-colors hover:text-foreground"
+              >
+                <RotateCcw size={11} className="inline mr-1" aria-hidden="true" />
+                Back
+              </button>
             </div>
           </form>
         </>

@@ -1,4 +1,13 @@
-import { ArrowDownToLine, ExternalLink, Minus, RefreshCcw, Unplug, Upload, Trash2 } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ExternalLink,
+  Minus,
+  MonitorSmartphone,
+  RefreshCcw,
+  Trash2,
+  Unplug,
+  Upload,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,14 +36,11 @@ export default function Ready({ onDisconnect, syncStatus, lastSyncTime, onSyncNo
   useEffect(() => {
     const ipc = w.require("electron").ipcRenderer;
 
-    const onUpdateAvailable = (_: unknown, { version }: { version: string }) => setUpdateVersion(version);
+    const onUpdateAvailable = (_: unknown, { version }: { version: string }) =>
+      setUpdateVersion(version);
 
     const onStart = (_: unknown, { id, name, type }: { id: string; name: string; type: "upload" | "delete" }) => {
-      setTransfers((prev) => {
-        const existing = prev.find((t) => t.id === id);
-        if (existing) return prev;
-        return [...prev, { id, name, type, percent: 0, status: "active" }];
-      });
+      setTransfers((prev) => prev.find((t) => t.id === id) ? prev : [...prev, { id, name, type, percent: 0, status: "active" }]);
     };
 
     const onProgress = (_: unknown, { id, percent }: { id: string; percent: number }) => {
@@ -42,8 +48,8 @@ export default function Ready({ onDisconnect, syncStatus, lastSyncTime, onSyncNo
     };
 
     const scheduleDismiss = (id: string) => {
-      const existing = dismissTimers.current.get(id);
-      if (existing) clearTimeout(existing);
+      const ex = dismissTimers.current.get(id);
+      if (ex) clearTimeout(ex);
       const timer = setTimeout(() => {
         setTransfers((prev) => prev.filter((t) => t.id !== id));
         dismissTimers.current.delete(id);
@@ -78,78 +84,97 @@ export default function Ready({ onDisconnect, syncStatus, lastSyncTime, onSyncNo
   }, []);
 
   function syncLabel() {
-    if (syncStatus === "syncing") return "Syncing files…";
-    if (syncStatus === "error") return "Sync failed — click to retry";
-    if (lastSyncTime) return `Synced at ${lastSyncTime.toLocaleTimeString()}`;
+    if (syncStatus === "syncing") return "Syncing…";
+    if (syncStatus === "error") return "Sync failed · retry";
+    if (lastSyncTime) return `Synced ${lastSyncTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
     return "Not synced yet";
   }
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-5">
-      <div className="relative flex size-16 items-center justify-center rounded-full bg-green-50">
-        <span className="absolute size-3 rounded-full bg-green-500 top-0 right-0 animate-pulse" />
-        <span className="text-2xl">🖥️</span>
+      {/* Connected icon */}
+      <div className="relative flex items-center justify-center">
+        <div className="absolute size-36 rounded-full bg-primary/10 blur-2xl" />
+        <div className="relative flex size-20 items-center justify-center rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/15 to-primary/5">
+          <MonitorSmartphone size={36} className="text-primary" aria-hidden="true" />
+          <div className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center">
+            <div className="absolute size-4 animate-ping rounded-full bg-green-500 opacity-50" />
+            <div className="size-3 rounded-full bg-green-500 border-2 border-background" />
+          </div>
+        </div>
       </div>
 
+      {/* Status text */}
       <div className="text-center">
-        <h2 className="text-xl font-semibold">Your PC is connected</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+        <h2 className="text-xl font-bold tracking-tight">PC is connected</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
           PC2CLOUD is running in the background.
           <br />
           Access your files from any device.
         </p>
       </div>
 
-      {/* Sync status */}
+      {/* Sync status pill */}
       <button
         onClick={onSyncNow}
         disabled={syncStatus === "syncing"}
-        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all hover:border-primary hover:text-primary disabled:opacity-50 ${
+          syncStatus === "error"
+            ? "border-red-300 text-red-500 dark:border-red-800 dark:text-red-400"
+            : "border-border text-muted-foreground"
+        }`}
       >
         <RefreshCcw
-          size={13}
+          size={11}
           className={syncStatus === "syncing" ? "animate-spin" : ""}
           aria-hidden="true"
         />
         {syncLabel()}
       </button>
 
-      {/* Active transfers */}
+      {/* Transfer notifications */}
       {transfers.length > 0 && (
         <div className="w-full max-w-xs flex flex-col gap-1.5">
           {transfers.map((t) => (
             <div
               key={t.id}
-              className={`rounded-lg border px-3 py-2 text-xs ${
+              className={`rounded-xl border px-3 py-2.5 transition-all ${
                 t.status === "error"
-                  ? "border-red-200 bg-red-50"
+                  ? "border-red-500/25 bg-red-500/8"
                   : t.type === "delete"
-                  ? "border-orange-200 bg-orange-50"
-                  : "border-blue-200 bg-blue-50"
+                  ? "border-orange-500/25 bg-orange-500/8"
+                  : "border-primary/25 bg-primary/8"
               }`}
             >
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1.5">
                 {t.type === "upload" ? (
-                  <Upload size={11} className="shrink-0 text-blue-600" aria-hidden="true" />
+                  <Upload size={11} className={`shrink-0 ${t.status === "error" ? "text-red-500" : "text-primary"}`} aria-hidden="true" />
                 ) : (
-                  <Trash2 size={11} className="shrink-0 text-orange-600" aria-hidden="true" />
+                  <Trash2 size={11} className="shrink-0 text-orange-500" aria-hidden="true" />
                 )}
-                <span className="flex-1 truncate font-medium text-foreground">{t.name}</span>
-                <span className={`shrink-0 ${t.status === "error" ? "text-red-600" : t.status === "done" ? "text-green-600" : "text-muted-foreground"}`}>
-                  {t.status === "error" ? "Failed" : t.status === "done" ? "Done" : t.type === "delete" ? "Deleting…" : `${t.percent}%`}
+                <span className="flex-1 truncate text-xs font-medium">{t.name}</span>
+                <span className={`shrink-0 text-[11px] font-semibold ${
+                  t.status === "error" ? "text-red-500" :
+                  t.status === "done" ? "text-green-500" :
+                  "text-muted-foreground"
+                }`}>
+                  {t.status === "error" ? "Failed" :
+                   t.status === "done" ? "Done" :
+                   t.type === "delete" ? "Deleting…" :
+                   `${t.percent}%`}
                 </span>
               </div>
               {t.type === "upload" && t.status !== "error" && (
-                <div className="h-1 w-full rounded-full bg-blue-100 overflow-hidden">
+                <div className="h-1 w-full overflow-hidden rounded-full bg-primary/15">
                   <div
-                    className={`h-full rounded-full transition-all duration-200 ${t.status === "done" ? "bg-green-500" : "bg-blue-500"}`}
-                    style={{ width: `${t.status === "active" && t.percent === 0 ? 8 : t.percent}%` }}
+                    className={`h-full rounded-full transition-all duration-200 ${t.status === "done" ? "bg-green-500" : "bg-primary"}`}
+                    style={{ width: `${t.status === "active" && t.percent === 0 ? 6 : t.percent}%` }}
                   />
                 </div>
               )}
               {t.type === "delete" && t.status === "active" && (
-                <div className="h-1 w-full rounded-full bg-orange-100 overflow-hidden">
-                  <div className="h-full w-full rounded-full bg-orange-400 animate-pulse" />
+                <div className="h-1 w-full overflow-hidden rounded-full bg-orange-500/15">
+                  <div className="h-full w-full animate-pulse rounded-full bg-orange-500" />
                 </div>
               )}
             </div>
@@ -157,39 +182,41 @@ export default function Ready({ onDisconnect, syncStatus, lastSyncTime, onSyncNo
         </div>
       )}
 
+      {/* Update banner */}
       {updateVersion && (
-        <div className="flex w-full max-w-xs items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
-          <ArrowDownToLine size={13} aria-hidden="true" className="shrink-0" />
-          <span className="flex-1">Update {updateVersion} available</span>
+        <div className="flex w-full max-w-xs items-center gap-2 rounded-xl border border-primary/25 bg-primary/8 px-3 py-2.5 text-xs">
+          <ArrowDownToLine size={13} className="shrink-0 text-primary" aria-hidden="true" />
+          <span className="flex-1 text-foreground">Update {updateVersion} available</span>
           <button
             onClick={() => w.require("electron").ipcRenderer.invoke("app:open-dashboard")}
-            className="font-medium underline"
+            className="font-semibold text-primary hover:underline"
           >
             Download
           </button>
         </div>
       )}
 
+      {/* Actions */}
       <div className="flex w-full max-w-xs flex-col gap-2">
         <button
           onClick={() => w.require("electron").ipcRenderer.invoke("app:open-dashboard")}
-          className="flex h-10 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
+          className="flex h-10 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:opacity-90 active:scale-[0.99]"
         >
-          <ExternalLink size={16} aria-hidden="true" />
+          <ExternalLink size={15} aria-hidden="true" />
           Open Dashboard
         </button>
         <button
           onClick={() => w.require("electron").ipcRenderer.invoke("app:minimize-tray")}
-          className="flex h-10 items-center justify-center gap-2 rounded-lg border border-border text-sm font-medium"
+          className="flex h-10 items-center justify-center gap-2 rounded-xl border border-border text-sm font-medium transition-colors hover:bg-muted"
         >
-          <Minus size={16} aria-hidden="true" />
+          <Minus size={15} aria-hidden="true" />
           Minimize to tray
         </button>
         <button
           onClick={onDisconnect}
-          className="flex h-10 items-center justify-center gap-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+          className="flex h-10 items-center justify-center gap-2 rounded-xl border border-border text-sm font-medium text-muted-foreground transition-colors hover:border-red-500/30 hover:bg-red-500/8 hover:text-red-500"
         >
-          <Unplug size={16} aria-hidden="true" />
+          <Unplug size={15} aria-hidden="true" />
           Disconnect this PC
         </button>
       </div>

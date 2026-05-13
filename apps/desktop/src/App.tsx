@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Cloud, Minus, Moon, Sun, X } from "lucide-react";
 import Login from "./screens/Login";
 import Setup from "./screens/Setup";
 import Ready from "./screens/Ready";
@@ -9,18 +10,30 @@ type Screen = "loading" | "login" | "setup" | "folder-missing" | "ready";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ipc = () => (window as any).require("electron").ipcRenderer;
 
-const STORAGE_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const STORAGE_SYNC_INTERVAL = 5 * 60 * 1000;
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("loading");
   const [hasConfig, setHasConfig] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [dark, setDark] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("pc2cloud_theme");
+      if (saved) return saved === "dark";
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    } catch { return false; }
+  });
 
   const storageSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const deviceIdRef = useRef<string>("");
   const folderPathRef = useRef<string>("");
   const fileSyncBusyRef = useRef(false);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    try { localStorage.setItem("pc2cloud_theme", dark ? "dark" : "light"); } catch {}
+  }, [dark]);
 
   function connectSocket(deviceId: string) {
     ipc().invoke("socket:connect", deviceId, getToken(), API_URL);
@@ -59,8 +72,7 @@ export default function App() {
       setLastSyncTime(new Date());
     } catch {
       setSyncStatus("error");
-    }
-    finally { fileSyncBusyRef.current = false; }
+    } finally { fileSyncBusyRef.current = false; }
   }
 
   function startStorageSync(deviceId: string, folderPath: string) {
@@ -74,8 +86,6 @@ export default function App() {
 
   async function reconnectWithConfig(config: { deviceId: string; folderPath: string; deviceName?: string }): Promise<boolean | "setup"> {
     deviceIdRef.current = config.deviceId;
-
-    // Verify device exists for this user — if not, this machine needs fresh Setup
     let folderPath = config.folderPath;
     try {
       const res = await apiFetch(`${API_URL}/api/devices/${config.deviceId}/heartbeat`, {
@@ -92,7 +102,6 @@ export default function App() {
       connectSocket(config.deviceId);
     } catch { /* network error — proceed to ready with cached config */ }
 
-    // If a folder path is configured but no longer exists on disk, prompt re-pick
     if (folderPath) {
       const exists: boolean = await ipc().invoke("folder:exists", folderPath);
       if (!exists) return false;
@@ -123,7 +132,6 @@ export default function App() {
     folderPathRef.current = folderPath;
     ipc().invoke("socket:set-folder", folderPath);
 
-    // Update server with new folder path
     apiFetch(`${API_URL}/api/devices/${deviceId}/storage`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -136,7 +144,6 @@ export default function App() {
     setScreen("ready");
   }
 
-  // Watch folder for changes while on the ready screen
   useEffect(() => {
     if (screen !== "ready") return;
     const deviceId = deviceIdRef.current;
@@ -166,7 +173,6 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      // Restore persisted token so Bearer auth works before any API call
       const config = await ipc().invoke("config:read");
       if (config?.authToken) setToken(config.authToken);
 
@@ -202,7 +208,6 @@ export default function App() {
       setScreen(result ? "ready" : "folder-missing");
       return;
     }
-
     setScreen("setup");
   }
 
@@ -231,7 +236,6 @@ export default function App() {
     const savedDeviceId = deviceIdRef.current;
     const savedFolderPath = folderPathRef.current;
     await ipc().invoke("config:clear");
-    // Preserve deviceId + folderPath so next login reconnects to the same device without re-running Setup
     if (savedDeviceId || savedFolderPath) {
       await ipc().invoke("config:write", { deviceId: savedDeviceId, folderPath: savedFolderPath });
     }
@@ -241,46 +245,70 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-white">
-      <div className="drag-region flex h-8 shrink-0 items-center justify-between px-4">
-        <span className="text-xs font-medium text-muted-foreground">PC2CLOUD</span>
-        <div className="no-drag flex gap-1">
+    <div className="flex h-full flex-col bg-background text-foreground">
+      {/* Title bar */}
+      <div className="drag-region flex h-9 shrink-0 items-center justify-between border-b border-border/60 px-3">
+        <div className="flex items-center gap-2">
+          <div className="flex size-5 items-center justify-center rounded-md bg-primary">
+            <Cloud size={11} className="text-primary-foreground" aria-hidden="true" />
+          </div>
+          <span className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase select-none">
+            PC2CLOUD
+          </span>
+        </div>
+        <div className="no-drag flex items-center gap-0.5">
+          <button
+            onClick={() => setDark(d => !d)}
+            className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title={dark ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {dark ? <Sun size={12} aria-hidden="true" /> : <Moon size={12} aria-hidden="true" />}
+          </button>
           <button
             onClick={() => ipc().invoke("window:minimize")}
-            className="flex size-5 items-center justify-center rounded text-xs text-muted-foreground hover:bg-muted"
+            className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            –
+            <Minus size={12} aria-hidden="true" />
           </button>
           <button
             onClick={() => ipc().invoke("window:close")}
-            className="flex size-5 items-center justify-center rounded text-xs text-muted-foreground hover:bg-red-100 hover:text-red-600"
+            className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-red-500/15 hover:text-red-500"
           >
-            ×
+            <X size={12} aria-hidden="true" />
           </button>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden px-8 pb-8">
+      {/* Screen content */}
+      <div className="flex flex-1 flex-col overflow-hidden px-7 pb-7">
         {screen === "loading" && (
           <div className="flex flex-1 items-center justify-center">
-            <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <div className="flex flex-col items-center gap-3">
+              <div className="size-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <span className="text-xs text-muted-foreground">Connecting…</span>
+            </div>
           </div>
         )}
-        {screen === "login" && <Login onDone={handleLoginDone} />}
+        {screen === "login" && <Login onDone={handleLoginDone} hasConfig={hasConfig} />}
         {screen === "setup" && <Setup onDone={handleSetupDone} onLogout={handleSetupLogout} />}
         {screen === "folder-missing" && (
           <div className="flex flex-1 flex-col justify-center gap-5">
-            <div>
-              <h2 className="text-xl font-semibold">Folder not found</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Your PC2CLOUD folder was moved or deleted. Pick a new location to continue.
-              </p>
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                <span className="text-2xl">📁</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Folder not found</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your PC2CLOUD folder was moved or deleted.
+                  <br />Pick a new location to continue.
+                </p>
+              </div>
             </div>
             <button
               onClick={handleRePickFolder}
-              className="flex h-28 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border transition-colors hover:border-primary hover:bg-primary/5"
+              className="flex h-24 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border transition-colors hover:border-primary hover:bg-primary/5"
             >
-              <span className="text-2xl">📁</span>
               <span className="text-sm font-medium">Choose new folder location</span>
               <span className="text-xs text-muted-foreground">A PC2CLOUD subfolder will be created here</span>
             </button>
