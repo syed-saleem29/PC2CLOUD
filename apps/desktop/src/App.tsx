@@ -182,21 +182,6 @@ export default function App() {
         return;
       }
 
-      try {
-        const res = await apiFetch(`${API_URL}/api/devices`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.devices?.length > 0) {
-            const device = data.devices[0];
-            const saved = { deviceId: device.deviceId, folderPath: config?.folderPath || "", deviceName: device.deviceName };
-            await ipc().invoke("config:write", saved);
-            const ok = await reconnectWithConfig(saved);
-            setScreen(ok ? "ready" : "folder-missing");
-            return;
-          }
-        }
-      } catch { /* fall through */ }
-
       setScreen("setup");
     })();
 
@@ -214,22 +199,6 @@ export default function App() {
       setScreen(ok ? "ready" : "folder-missing");
       return;
     }
-
-    try {
-      const res = await apiFetch(`${API_URL}/api/devices`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.devices?.length > 0) {
-          const device = data.devices[0];
-          const saved = { deviceId: device.deviceId, folderPath: config?.folderPath || "", deviceName: device.deviceName };
-          await ipc().invoke("config:write", saved);
-          const ok = await reconnectWithConfig(saved);
-          setHasConfig(false);
-          setScreen(ok ? "ready" : "folder-missing");
-          return;
-        }
-      }
-    } catch { /* fall through */ }
 
     setScreen("setup");
   }
