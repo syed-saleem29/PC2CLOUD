@@ -72,15 +72,16 @@ export default function App() {
     );
   }
 
-  async function reconnectWithConfig(config: { deviceId: string; folderPath: string; deviceName?: string }): Promise<boolean> {
+  async function reconnectWithConfig(config: { deviceId: string; folderPath: string; deviceName?: string }): Promise<boolean | "setup"> {
     deviceIdRef.current = config.deviceId;
 
-    // Recover sharedFolderPath from the server when local config is missing it
+    // Verify device exists for this user — if not, this machine needs fresh Setup
     let folderPath = config.folderPath;
     try {
       const res = await apiFetch(`${API_URL}/api/devices/${config.deviceId}/heartbeat`, {
         method: "PATCH",
       });
+      if (res.status === 404) return "setup";
       if (res.ok) {
         const data = await res.json();
         if (!folderPath && data.sharedFolderPath) {
@@ -89,7 +90,7 @@ export default function App() {
         }
       }
       connectSocket(config.deviceId);
-    } catch { /* go to ready anyway */ }
+    } catch { /* network error — proceed to ready with cached config */ }
 
     // If a folder path is configured but no longer exists on disk, prompt re-pick
     if (folderPath) {
@@ -177,8 +178,9 @@ export default function App() {
       }
 
       if (config?.deviceId) {
-        const ok = await reconnectWithConfig(config);
-        setScreen(ok ? "ready" : "folder-missing");
+        const result = await reconnectWithConfig(config);
+        if (result === "setup") { await ipc().invoke("config:clear"); setScreen("setup"); return; }
+        setScreen(result ? "ready" : "folder-missing");
         return;
       }
 
@@ -194,9 +196,10 @@ export default function App() {
   async function handleLoginDone() {
     const config = await ipc().invoke("config:read");
     if (config?.deviceId) {
-      const ok = await reconnectWithConfig(config);
+      const result = await reconnectWithConfig(config);
       setHasConfig(false);
-      setScreen(ok ? "ready" : "folder-missing");
+      if (result === "setup") { await ipc().invoke("config:clear"); setScreen("setup"); return; }
+      setScreen(result ? "ready" : "folder-missing");
       return;
     }
 
