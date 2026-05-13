@@ -223,12 +223,15 @@ export default function App() {
 
   async function handleDisconnect() {
     ipc().invoke("folder:unwatch");
-    ipc().invoke("socket:disconnect");
+    await ipc().invoke("socket:disconnect");
     if (storageSyncRef.current) clearInterval(storageSyncRef.current);
+    const savedDeviceId = deviceIdRef.current;
     const savedFolderPath = folderPathRef.current;
     await ipc().invoke("config:clear");
-    // Preserve folderPath so reconnect can skip asking the server (or catching a stale path)
-    if (savedFolderPath) await ipc().invoke("config:write", { folderPath: savedFolderPath });
+    // Preserve deviceId + folderPath so next login reconnects to the same device without re-running Setup
+    if (savedDeviceId || savedFolderPath) {
+      await ipc().invoke("config:write", { deviceId: savedDeviceId, folderPath: savedFolderPath });
+    }
     setToken("");
     setHasConfig(false);
     setScreen("login");
