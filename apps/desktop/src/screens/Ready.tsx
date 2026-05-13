@@ -1,5 +1,5 @@
-import { ArrowDownToLine, ExternalLink, Minus, RefreshCcw, Unplug } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowDownToLine, ExternalLink, Minus, RefreshCcw, Unplug, Upload, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const w = window as any;
@@ -11,14 +11,70 @@ type Props = {
   onSyncNow: () => void;
 };
 
+type Transfer = {
+  id: string;
+  name: string;
+  type: "upload" | "delete";
+  percent: number;
+  status: "active" | "done" | "error";
+};
+
 export default function Ready({ onDisconnect, syncStatus, lastSyncTime, onSyncNow }: Props) {
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const dismissTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     const ipc = w.require("electron").ipcRenderer;
-    const handler = (_: unknown, { version }: { version: string }) => setUpdateVersion(version);
-    ipc.on("update:available", handler);
-    return () => ipc.removeListener("update:available", handler);
+
+    const onUpdateAvailable = (_: unknown, { version }: { version: string }) => setUpdateVersion(version);
+
+    const onStart = (_: unknown, { id, name, type }: { id: string; name: string; type: "upload" | "delete" }) => {
+      setTransfers((prev) => {
+        const existing = prev.find((t) => t.id === id);
+        if (existing) return prev;
+        return [...prev, { id, name, type, percent: 0, status: "active" }];
+      });
+    };
+
+    const onProgress = (_: unknown, { id, percent }: { id: string; percent: number }) => {
+      setTransfers((prev) => prev.map((t) => t.id === id ? { ...t, percent } : t));
+    };
+
+    const scheduleDismiss = (id: string) => {
+      const existing = dismissTimers.current.get(id);
+      if (existing) clearTimeout(existing);
+      const timer = setTimeout(() => {
+        setTransfers((prev) => prev.filter((t) => t.id !== id));
+        dismissTimers.current.delete(id);
+      }, 3000);
+      dismissTimers.current.set(id, timer);
+    };
+
+    const onDone = (_: unknown, { id }: { id: string }) => {
+      setTransfers((prev) => prev.map((t) => t.id === id ? { ...t, status: "done", percent: 100 } : t));
+      scheduleDismiss(id);
+    };
+
+    const onError = (_: unknown, { id }: { id: string }) => {
+      setTransfers((prev) => prev.map((t) => t.id === id ? { ...t, status: "error" } : t));
+      scheduleDismiss(id);
+    };
+
+    ipc.on("update:available", onUpdateAvailable);
+    ipc.on("transfer:start", onStart);
+    ipc.on("transfer:progress", onProgress);
+    ipc.on("transfer:done", onDone);
+    ipc.on("transfer:error", onError);
+
+    return () => {
+      ipc.removeListener("update:available", onUpdateAvailable);
+      ipc.removeListener("transfer:start", onStart);
+      ipc.removeListener("transfer:progress", onProgress);
+      ipc.removeListener("transfer:done", onDone);
+      ipc.removeListener("transfer:error", onError);
+      dismissTimers.current.forEach((t) => clearTimeout(t));
+    };
   }, []);
 
   function syncLabel() {
@@ -57,6 +113,49 @@ export default function Ready({ onDisconnect, syncStatus, lastSyncTime, onSyncNo
         />
         {syncLabel()}
       </button>
+
+      {/* Active transfers */}
+      {transfers.length > 0 && (
+        <div className="w-full max-w-xs flex flex-col gap-1.5">
+          {transfers.map((t) => (
+            <div
+              key={t.id}
+              className={`rounded-lg border px-3 py-2 text-xs ${
+                t.status === "error"
+                  ? "border-red-200 bg-red-50"
+                  : t.type === "delete"
+                  ? "border-orange-200 bg-orange-50"
+                  : "border-blue-200 bg-blue-50"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                {t.type === "upload" ? (
+                  <Upload size={11} className="shrink-0 text-blue-600" aria-hidden="true" />
+                ) : (
+                  <Trash2 size={11} className="shrink-0 text-orange-600" aria-hidden="true" />
+                )}
+                <span className="flex-1 truncate font-medium text-foreground">{t.name}</span>
+                <span className={`shrink-0 ${t.status === "error" ? "text-red-600" : t.status === "done" ? "text-green-600" : "text-muted-foreground"}`}>
+                  {t.status === "error" ? "Failed" : t.status === "done" ? "Done" : t.type === "delete" ? "Deleting…" : `${t.percent}%`}
+                </span>
+              </div>
+              {t.type === "upload" && t.status !== "error" && (
+                <div className="h-1 w-full rounded-full bg-blue-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-200 ${t.status === "done" ? "bg-green-500" : "bg-blue-500"}`}
+                    style={{ width: `${t.status === "active" && t.percent === 0 ? 8 : t.percent}%` }}
+                  />
+                </div>
+              )}
+              {t.type === "delete" && t.status === "active" && (
+                <div className="h-1 w-full rounded-full bg-orange-100 overflow-hidden">
+                  <div className="h-full w-full rounded-full bg-orange-400 animate-pulse" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {updateVersion && (
         <div className="flex w-full max-w-xs items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">

@@ -238,6 +238,7 @@ function handleFileRequest(requestId: string, filePath: string): void {
 async function handleFileUpload(requestId: string, filePath: string): Promise<void> {
   const folder = getFolder();
   const resolved = folder ? safeResolve(folder, filePath) : null;
+  const fileName = filePath.split("/").filter(Boolean).pop() || filePath;
   const rejectUpload = (msg: string) =>
     apiFetch(`${apiBaseUrl}/api/transfer/${requestId}/write-error`, {
       method: "POST",
@@ -246,19 +247,41 @@ async function handleFileUpload(requestId: string, filePath: string): Promise<vo
     }).catch(() => {});
 
   if (!resolved) { rejectUpload("Folder not configured or path denied"); return; }
+
+  mainWindow?.webContents.send("transfer:start", { id: requestId, name: fileName, type: "upload" });
   try {
     const nodeFs = getNodeFs();
     const nodePath = getNodePath();
     const res = await apiFetch(`${apiBaseUrl}/api/transfer/${requestId}/content`);
-    const buf = Buffer.from(await res.arrayBuffer());
+    if (!res.ok || !res.body) {
+      mainWindow?.webContents.send("transfer:error", { id: requestId });
+      rejectUpload("Could not fetch file from server");
+      return;
+    }
+    const total = parseInt(res.headers.get("content-length") || "0", 10);
+    let received = 0;
+    const chunks: Buffer[] = [];
+    const reader = res.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(Buffer.from(value));
+      received += value.length;
+      if (total > 0) {
+        mainWindow?.webContents.send("transfer:progress", { id: requestId, percent: Math.round((received / total) * 100) });
+      }
+    }
+    const buf = Buffer.concat(chunks);
     nodeFs.mkdirSync(nodePath.dirname(resolved), { recursive: true });
     nodeFs.writeFileSync(resolved, buf);
+    mainWindow?.webContents.send("transfer:done", { id: requestId });
     await apiFetch(`${apiBaseUrl}/api/transfer/${requestId}/write-done`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ok: true }),
     });
   } catch (err) {
+    mainWindow?.webContents.send("transfer:error", { id: requestId });
     rejectUpload(err instanceof Error ? err.message : "Could not write file");
   }
 }
@@ -317,20 +340,28 @@ ipcMain.handle("socket:connect", (_, deviceId: string, token: string, _apiUrl: s
     const folder = getFolder();
     const resolved = folder ? safeResolve(folder, filePath) : null;
     if (!resolved) return;
+    const fileName = filePath.split("/").filter(Boolean).pop() || filePath;
+    const id = `del-${Date.now()}`;
+    mainWindow?.webContents.send("transfer:start", { id, name: fileName, type: "delete" });
     try {
       const nodeFs = getNodeFs();
       if (nodeFs.existsSync(resolved)) nodeFs.unlinkSync(resolved);
     } catch { /* ignore */ }
+    mainWindow?.webContents.send("transfer:done", { id });
   });
 
   socket.on("folder:delete", ({ folderPath }: { folderPath: string }) => {
     const folder = getFolder();
     const resolved = folder ? safeResolve(folder, folderPath) : null;
     if (!resolved) return;
+    const folderName = folderPath.split("/").filter(Boolean).pop() || folderPath;
+    const id = `del-${Date.now()}`;
+    mainWindow?.webContents.send("transfer:start", { id, name: folderName, type: "delete" });
     try {
       const nodeFs = getNodeFs();
       if (nodeFs.existsSync(resolved)) nodeFs.rmSync(resolved, { recursive: true, force: true });
     } catch { /* ignore */ }
+    mainWindow?.webContents.send("transfer:done", { id });
   });
 
   socket.on("file:rename", ({ oldPath, newPath }: { oldPath: string; newPath: string }) => {

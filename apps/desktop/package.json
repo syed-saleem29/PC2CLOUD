@@ -10,7 +10,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "dist": "electron-vite build && electron-builder --win --x64",
+    "dist": "electron-vite build && electron-builder --win --x64 --publish never",
     "dist:zip": "electron-vite build && electron-builder --win --x64 --dir && powershell -Command Compress-Archive -Path dist/win-unpacked/* -DestinationPath dist/PC2CLOUD-portable.zip -Force"
   },
   "build": {
