@@ -166,7 +166,8 @@ export function Dashboard() {
 
   function connectDashboardSocket() {
     socketRef.current?.disconnect();
-    const socket = io(API_URL, { withCredentials: true });
+    const token = typeof window !== "undefined" ? localStorage.getItem("pc2cloud_token") : null;
+    const socket = io(API_URL, { withCredentials: true, auth: token ? { token } : undefined });
 
     socket.on("connect", () => {
       // Re-fetch devices on reconnect so status is fresh
@@ -648,6 +649,8 @@ export function Dashboard() {
       xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
       xhr.setRequestHeader("x-file-name", encodeURIComponent(file.name));
       xhr.withCredentials = true;
+      const uploadToken = typeof window !== "undefined" ? localStorage.getItem("pc2cloud_token") : null;
+      if (uploadToken) xhr.setRequestHeader("Authorization", `Bearer ${uploadToken}`);
       xhr.send(file);
     });
   }
