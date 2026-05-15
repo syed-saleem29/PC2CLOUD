@@ -204,7 +204,6 @@ async function heartbeatDeviceController(req, res) {
     },
     {
       $set: {
-        status: "online",
         lastSeen: new Date(),
         ipAddress: req.ip,
         userAgent: req.get("user-agent") || null,
