@@ -51,7 +51,9 @@
 .chip-brand { background: var(--brand-50); color: var(--brand-700); border-color: var(--brand-200); }
 .dark .chip-brand { background: rgba(59,130,246,0.10); color: var(--brand-400); border-color: rgba(59,130,246,0.30); }
 
-.dot { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; flex-shrink: 0; display: inline-block; }
+.dot { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--fg-muted); flex-shrink: 0; display: inline-block; }
+.dot-online { background: var(--success); }
+.dot-offline { background: var(--danger); }
 .dot-pulse { position: relative; }
 .dot-pulse::before {
   content: ""; position: absolute; inset: -3px; border-radius: var(--r-full);

@@ -1244,7 +1244,7 @@ export function Dashboard() {
 
                       <div>
                         <span className={`chip${device.status === "online" ? " chip-success" : ""}`}>
-                          <span className={`dot${device.status === "online" ? " dot-pulse" : ""}`} style={device.status !== "online" ? { background: "var(--danger)" } : undefined}></span>
+                          <span className={`dot${device.status === "online" ? " dot-online dot-pulse" : " dot-offline"}`}></span>
                           {device.status}
                         </span>
                         <div className="caption" style={{ marginTop: 6 }}>{device.platform}</div>
@@ -1318,7 +1318,7 @@ export function Dashboard() {
                 <button key={device.deviceId} className={`tab${selectedDeviceId === device.deviceId ? " active" : ""}`} onClick={() => openDeviceStorage(device)} disabled={isLoading}>
                   <Computer size={13} aria-hidden="true" />
                   {device.deviceName}
-                  <span className={`dot${device.status === "online" ? " dot-pulse" : ""}`} style={{ background: device.status === "online" ? "var(--success)" : "var(--danger)", color: "var(--success)", width: 6, height: 6 }}></span>
+                  <span className={`dot${device.status === "online" ? " dot-online dot-pulse" : " dot-offline"}`}></span>
                 </button>
               ))}
               <button className="tab" onClick={() => setActiveSection("devices")}>
@@ -1630,8 +1630,8 @@ export function Dashboard() {
                       <div className="settings-row-desc">{device.platform} · last seen {formatDate(device.lastSeen)}</div>
                     </div>
                   </div>
-                  <span className={`chip ${device.status === "online" ? "chip-success" : "chip-danger"}`}>
-                    <span className={`dot${device.status === "online" ? " dot-pulse" : ""}`}></span>
+                  <span className={`chip${device.status === "online" ? " chip-success" : ""}`}>
+                    <span className={`dot${device.status === "online" ? " dot-online dot-pulse" : " dot-offline"}`}></span>
                     {device.status}
                   </span>
                 </div>
