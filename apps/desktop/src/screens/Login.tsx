@@ -157,7 +157,7 @@ export default function Login({ onDone, hasConfig }: { onDone: () => void; hasCo
   }
 
   const otpBoxes = (
-    <div className="flex gap-2">
+    <div className="d-otp">
       {otpDigits.map((d, i) => (
         <input
           key={i}
@@ -168,7 +168,6 @@ export default function Login({ onDone, hasConfig }: { onDone: () => void; hasCo
           value={d}
           onChange={(e) => handleOtpInput(i, e.target.value)}
           onKeyDown={(e) => handleOtpKeyDown(i, e)}
-          className="h-12 w-full rounded-xl border border-border bg-surface text-center text-lg font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
         />
       ))}
     </div>
@@ -176,11 +175,10 @@ export default function Login({ onDone, hasConfig }: { onDone: () => void; hasCo
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center">
-      {/* Logo */}
-      <div className="relative mb-1">
-        <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl" />
-        <div className="relative flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-800 shadow-lg shadow-primary/30">
-          <Cloud size={26} className="text-white" aria-hidden="true" />
+      {/* Logo orb */}
+      <div className="orb mb-1">
+        <div className="orb-inner">
+          <Cloud size={28} color="white" aria-hidden="true" />
         </div>
       </div>
 

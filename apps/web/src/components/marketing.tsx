@@ -150,8 +150,8 @@ export default function Marketing() {
             <a href="/dashboard" className="btn btn-primary btn-lg">
               Get started free <ArrowRight size={16} aria-hidden />
             </a>
-            <a href="#how-it-works" className="btn btn-secondary btn-lg">
-              <Monitor size={16} aria-hidden /> See how it works
+            <a href="/dashboard" className="btn btn-secondary btn-lg">
+              Open dashboard <ArrowRight size={16} aria-hidden />
             </a>
           </div>
           <div className="hero-meta">

@@ -1,30 +1,37 @@
 "use client";
 
 import {
+  Activity,
   ArrowDownToLine,
   ArrowUpDown,
+  ArrowUpRight,
   Check,
   ChevronDown,
   ChevronRight,
   Cloud,
   Computer,
+  Database,
   Eye,
   FileText,
   FolderOpen,
   FolderPlus,
+  Globe,
   HardDrive,
+  ImageIcon,
   Loader2,
-  LogIn,
   LogOut,
   Pencil,
   Plus,
   RefreshCcw,
   Search,
+  Settings2,
   ShieldCheck,
+  Sparkles,
   Trash2,
   Upload,
-  UserPlus,
+  Wifi,
   X,
+  Zap,
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
@@ -55,7 +62,7 @@ import {
   verifyEmail,
 } from "@/lib/api";
 
-type Section = "devices" | "storage" | "security";
+type Section = "devices" | "storage" | "activity" | "security" | "settings" | "help";
 
 function formatBytes(bytes: number) {
   if (!bytes || bytes <= 0) return "0 B";
@@ -189,6 +196,10 @@ export function Dashboard() {
 
   const totalStorage = useMemo(
     () => devices.reduce((sum, d) => sum + d.usedStorageBytes + d.storageLimitBytes, 0),
+    [devices],
+  );
+  const totalUsed = useMemo(
+    () => devices.reduce((sum, d) => sum + d.usedStorageBytes, 0),
     [devices],
   );
   const onlineDevices = devices.filter((d) => d.status === "online").length;
@@ -890,156 +901,148 @@ export function Dashboard() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
-        <div className="w-full max-w-sm">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl" />
-              <div className="relative flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-800 shadow-lg shadow-primary/30">
-                <Cloud size={22} className="text-white" aria-hidden="true" />
-              </div>
+      <div className="auth">
+        <div className="auth-card anim-fade-in">
+          <div className="auth-header">
+            <div className="auth-logo-mark">
+              <Cloud size={24} color="white" aria-hidden="true" />
             </div>
-            <div>
-              <p className="text-lg font-semibold tracking-wide">PC2CLOUD</p>
-              <p className="text-sm text-muted-foreground">Private storage</p>
-            </div>
+            {authScreen === "credentials" && (
+              <>
+                <h1>{mode === "login" ? "Welcome back" : "Create your account"}</h1>
+                <p>{mode === "login" ? "Sign in to access your devices." : "Free, forever — no card required."}</p>
+              </>
+            )}
+            {authScreen === "verify-email" && (
+              <>
+                <h1>Check your email</h1>
+                <p>Enter the 6-digit code sent to <strong style={{ color: "var(--fg)" }}>{pendingEmail}</strong></p>
+              </>
+            )}
+            {authScreen === "forgot-email" && (
+              <>
+                <h1>Forgot password</h1>
+                <p>We&apos;ll send a reset code to your email.</p>
+              </>
+            )}
+            {authScreen === "reset-password" && (
+              <>
+                <h1>Reset password</h1>
+                <p>Code sent to <strong style={{ color: "var(--fg)" }}>{pendingEmail}</strong></p>
+              </>
+            )}
           </div>
 
-          {/* ── Login / Register ── */}
           {authScreen === "credentials" && (
-            <form onSubmit={handleAuth} className="rounded-md border border-border bg-surface p-5 shadow-soft">
-              <div className="grid grid-cols-2 rounded-md bg-muted p-1 text-sm">
-                <button type="button" onClick={() => { setMode("login"); setConfirmPassword(""); setAuthMessage(""); }}
-                  className={`rounded-md px-3 py-2 font-medium ${mode === "login" ? "bg-surface shadow-sm" : "text-muted-foreground"}`}>
-                  Login
-                </button>
-                <button type="button" onClick={() => { setMode("register"); setAuthMessage(""); }}
-                  className={`rounded-md px-3 py-2 font-medium ${mode === "register" ? "bg-surface shadow-sm" : "text-muted-foreground"}`}>
-                  Register
-                </button>
+            <form onSubmit={handleAuth}>
+              <div className="auth-tabs">
+                <button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setConfirmPassword(""); setAuthMessage(""); }}>Login</button>
+                <button type="button" className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setAuthMessage(""); }}>Register</button>
               </div>
-              <div className="mt-4 grid gap-3">
+              <div className="field-row">
                 {mode === "register" && (
-                  <input value={username} onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Username"
-                    className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+                  <div className="field">
+                    <label>Name</label>
+                    <input className="input input-lg" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Your name" />
+                  </div>
                 )}
-                <input value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email" type="email"
-                  className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
-                <input value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password" type="password"
-                  className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+                <div className="field">
+                  <label>Email</label>
+                  <input className="input input-lg" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                </div>
+                <div className="field">
+                  <label>Password</label>
+                  <input className="input input-lg" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                </div>
                 {mode === "register" && (
-                  <input value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm password" type="password"
-                    className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+                  <div className="field">
+                    <label>Confirm password</label>
+                    <input className="input input-lg" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                  </div>
                 )}
               </div>
               {mode === "login" && (
-                <button type="button"
-                  onClick={() => { setPendingEmail(email); setAuthMessage(""); setAuthScreen("forgot-email"); }}
-                  className="mt-2 text-xs text-muted-foreground hover:text-foreground">
-                  Forgot password?
-                </button>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                  <button type="button" onClick={() => { setPendingEmail(email); setAuthMessage(""); setAuthScreen("forgot-email"); }}
+                    style={{ fontSize: 12, color: "var(--fg-muted)", background: "none", border: "none", cursor: "pointer" }}>
+                    Forgot password?
+                  </button>
+                </div>
               )}
-              <button disabled={isLoading}
-                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-60">
-                {mode === "login" ? <LogIn size={17} aria-hidden="true" /> : <UserPlus size={17} aria-hidden="true" />}
-                {isLoading ? "Please wait…" : mode === "login" ? "Login" : "Create account"}
+              {authMessage && <p className="auth-error">{authMessage}</p>}
+              <button type="submit" disabled={isLoading} className="btn btn-primary btn-lg" style={{ width: "100%", marginTop: 20 }}>
+                {isLoading ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
               </button>
-              {authMessage && <p className="mt-3 text-sm text-red-600">{authMessage}</p>}
+              <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--line)", textAlign: "center", fontSize: 12, color: "var(--fg-muted)" }}>
+                By continuing, you agree to our <a href="#" style={{ color: "var(--brand-600)" }}>Terms</a> &amp; <a href="#" style={{ color: "var(--brand-600)" }}>Privacy</a>.
+              </div>
             </form>
           )}
 
-          {/* ── Verify email OTP ── */}
           {authScreen === "verify-email" && (
-            <form onSubmit={handleVerifyEmail} className="rounded-md border border-border bg-surface p-5 shadow-soft">
-              <h2 className="font-semibold">Verify your email</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Enter the 6-digit code sent to <span className="font-medium text-foreground">{pendingEmail}</span>
-              </p>
-              <div className="mt-5 flex justify-between gap-2">
+            <form onSubmit={handleVerifyEmail}>
+              <div className="otp">
                 {otpDigits.map((d, i) => (
-                  <input key={i}
-                    ref={(el) => { otpRefs.current[i] = el; }}
-                    type="text" inputMode="numeric" maxLength={6} value={d}
+                  <input key={i} ref={(el) => { otpRefs.current[i] = el; }}
+                    inputMode="numeric" maxLength={6} value={d}
                     onChange={(e) => handleOtpInput(i, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    className="h-12 w-full rounded-md border border-border text-center text-lg font-semibold outline-none focus:border-primary" />
+                    onKeyDown={(e) => handleOtpKeyDown(i, e)} />
                 ))}
               </div>
-              {authMessage && <p className="mt-3 text-sm text-red-600">{authMessage}</p>}
-              <button disabled={isLoading || getOtp().length < 6}
-                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary font-semibold text-primary-foreground disabled:opacity-60">
-                {isLoading ? "Verifying…" : "Verify"}
+              {authMessage && <p className="auth-error">{authMessage}</p>}
+              <button type="submit" disabled={isLoading || getOtp().length < 6} className="btn btn-primary btn-lg" style={{ width: "100%", marginTop: 20 }}>
+                {isLoading ? "Verifying…" : "Verify email"}
               </button>
-              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                <button type="button" onClick={() => handleResendOtp("verify")} disabled={isLoading}
-                  className="hover:text-foreground disabled:opacity-50">Resend code</button>
-                <button type="button" onClick={() => { setAuthScreen("credentials"); setAuthMessage(""); }}
-                  className="hover:text-foreground">Back to login</button>
+              <div className="auth-foot">
+                <button type="button" onClick={() => handleResendOtp("verify")} disabled={isLoading}>Resend code</button>
+                <button type="button" onClick={() => { setAuthScreen("credentials"); setAuthMessage(""); }}>Back to login</button>
               </div>
             </form>
           )}
 
-          {/* ── Forgot password — enter email ── */}
           {authScreen === "forgot-email" && (
-            <form onSubmit={handleForgotEmail} className="rounded-md border border-border bg-surface p-5 shadow-soft">
-              <h2 className="font-semibold">Forgot password</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Enter your email and we&apos;ll send you a reset code.
-              </p>
-              <input value={pendingEmail} onChange={(e) => setPendingEmail(e.target.value)}
-                placeholder="Email" type="email" required
-                className="mt-4 h-11 w-full rounded-md border border-border px-3 outline-none focus:border-primary" />
-              {authMessage && <p className="mt-3 text-sm text-red-600">{authMessage}</p>}
-              <button disabled={isLoading}
-                className="mt-4 flex h-11 w-full items-center justify-center rounded-md bg-primary font-semibold text-primary-foreground disabled:opacity-60">
-                {isLoading ? "Sending…" : "Send code"}
+            <form onSubmit={handleForgotEmail}>
+              <div className="field">
+                <label>Email</label>
+                <input className="input input-lg" type="email" value={pendingEmail} onChange={(e) => setPendingEmail(e.target.value)} required />
+              </div>
+              {authMessage && <p className="auth-error">{authMessage}</p>}
+              <button type="submit" disabled={isLoading} className="btn btn-primary btn-lg" style={{ width: "100%", marginTop: 20 }}>
+                {isLoading ? "Sending…" : "Send reset code"}
               </button>
-              <button type="button" onClick={() => { setAuthScreen("credentials"); setAuthMessage(""); }}
-                className="mt-3 w-full text-center text-xs text-muted-foreground hover:text-foreground">
-                Back to login
-              </button>
+              <div className="auth-foot" style={{ justifyContent: "center" }}>
+                <button type="button" onClick={() => { setAuthScreen("credentials"); setAuthMessage(""); }}>Back to login</button>
+              </div>
             </form>
           )}
 
-          {/* ── Reset password — OTP + new password ── */}
           {authScreen === "reset-password" && (
-            <form onSubmit={handleResetPassword} className="rounded-md border border-border bg-surface p-5 shadow-soft">
-              <h2 className="font-semibold">Reset password</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Code sent to <span className="font-medium text-foreground">{pendingEmail}</span>
-              </p>
-              <div className="mt-5 flex justify-between gap-2">
+            <form onSubmit={handleResetPassword}>
+              <div className="otp">
                 {otpDigits.map((d, i) => (
-                  <input key={i}
-                    ref={(el) => { otpRefs.current[i] = el; }}
-                    type="text" inputMode="numeric" maxLength={6} value={d}
+                  <input key={i} ref={(el) => { otpRefs.current[i] = el; }}
+                    inputMode="numeric" maxLength={6} value={d}
                     onChange={(e) => handleOtpInput(i, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    className="h-12 w-full rounded-md border border-border text-center text-lg font-semibold outline-none focus:border-primary" />
+                    onKeyDown={(e) => handleOtpKeyDown(i, e)} />
                 ))}
               </div>
-              <div className="mt-3 grid gap-3">
-                <input value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="New password" type="password" required minLength={6}
-                  className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
-                <input value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password" type="password" required
-                  className="h-11 rounded-md border border-border px-3 outline-none focus:border-primary" />
+              <div className="field-row" style={{ marginTop: 16 }}>
+                <div className="field">
+                  <label>New password</label>
+                  <input className="input input-lg" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} />
+                </div>
+                <div className="field">
+                  <label>Confirm password</label>
+                  <input className="input input-lg" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                </div>
               </div>
-              {authMessage && <p className="mt-3 text-sm text-red-600">{authMessage}</p>}
-              <button disabled={isLoading || getOtp().length < 6}
-                className="mt-4 flex h-11 w-full items-center justify-center rounded-md bg-primary font-semibold text-primary-foreground disabled:opacity-60">
+              {authMessage && <p className="auth-error">{authMessage}</p>}
+              <button type="submit" disabled={isLoading || getOtp().length < 6} className="btn btn-primary btn-lg" style={{ width: "100%", marginTop: 20 }}>
                 {isLoading ? "Resetting…" : "Reset password"}
               </button>
-              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                <button type="button" onClick={() => handleResendOtp("reset")} disabled={isLoading}
-                  className="hover:text-foreground disabled:opacity-50">Resend code</button>
-                <button type="button" onClick={() => { setAuthScreen("forgot-email"); setAuthMessage(""); resetOtp(); }}
-                  className="hover:text-foreground">Back</button>
+              <div className="auth-foot">
+                <button type="button" onClick={() => handleResendOtp("reset")} disabled={isLoading}>Resend code</button>
+                <button type="button" onClick={() => { setAuthScreen("forgot-email"); setAuthMessage(""); resetOtp(); }}>Back</button>
               </div>
             </form>
           )}
@@ -1052,496 +1055,333 @@ export function Dashboard() {
 
   const breadcrumbs = buildBreadcrumbs(selectedPath);
 
+  const sidebarMainItems: { id: Section; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { id: "devices",  label: "Devices",  icon: <Computer size={15} aria-hidden="true" />, badge: devices.length },
+    { id: "storage",  label: "Storage",  icon: <HardDrive size={15} aria-hidden="true" /> },
+    { id: "activity", label: "Activity", icon: <Activity size={15} aria-hidden="true" /> },
+    { id: "security", label: "Security", icon: <ShieldCheck size={15} aria-hidden="true" /> },
+  ];
+  const sidebarSettingsItems: { id: Section; label: string; icon: React.ReactNode }[] = [
+    { id: "settings", label: "Settings", icon: <Settings2 size={15} aria-hidden="true" /> },
+    { id: "help",     label: "Help",     icon: <Globe size={15} aria-hidden="true" /> },
+  ];
+
   return (
-    <div className="flex min-h-screen bg-muted/20">
-      {/* Sidebar */}
-      <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-surface">
-        <div className="flex items-center gap-2.5 px-4 py-5">
-          <div className="relative flex size-8 shrink-0 items-center justify-center rounded-[7px] bg-gradient-to-br from-blue-500 to-blue-800 shadow-md">
-            <div className="absolute inset-0 rounded-[7px] bg-gradient-to-b from-white/15 to-transparent" />
-            <Cloud size={16} className="relative z-10 text-white" aria-hidden="true" />
+    <div className="shell">
+      {/* ── Sidebar ── */}
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <div className="logo">
+            <span className="logo-mark" style={{ width: 28, height: 28, borderRadius: 7 }}>
+              <Cloud size={16} color="white" aria-hidden="true" />
+            </span>
+            <span className="logo-text">PC2CLOUD</span>
           </div>
-          <p className="font-semibold tracking-wide">PC2CLOUD</p>
         </div>
 
-        <nav className="grid gap-0.5 px-2 text-sm">
-          {(
-            [
-              { id: "devices", label: "Devices", icon: <Computer size={16} aria-hidden="true" /> },
-              { id: "storage", label: "Storage", icon: <HardDrive size={16} aria-hidden="true" /> },
-              { id: "security", label: "Security", icon: <ShieldCheck size={16} aria-hidden="true" /> },
-            ] as { id: Section; label: string; icon: React.ReactNode }[]
-          ).map(({ id, label, icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveSection(id)}
-              className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-medium transition-colors ${
-                activeSection === id
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-              }`}
-            >
+        <div className="sidebar-section">
+          {sidebarMainItems.map(({ id, label, icon, badge }) => (
+            <button key={id} className={`nav-item${activeSection === id ? " active" : ""}`} onClick={() => setActiveSection(id)}>
+              {icon}
+              {label}
+              {badge != null && <span className="nav-item-end mono">{badge}</span>}
+            </button>
+          ))}
+        </div>
+
+        <div className="sidebar-section">
+          <div className="sidebar-section-label">Settings</div>
+          {sidebarSettingsItems.map(({ id, label, icon }) => (
+            <button key={id} className={`nav-item${activeSection === id ? " active" : ""}`} onClick={() => setActiveSection(id)}>
               {icon}
               {label}
             </button>
           ))}
-        </nav>
-
-        <div className="mx-2 mt-4 rounded-md border border-border p-3">
-          <p className="text-sm font-medium">Windows app</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">One-click installer</p>
-          <a
-            href="https://github.com/syed-saleem29/PC2CLOUD/releases/download/v0.1.0/PC2CLOUD.Setup.0.1.0.exe"
-            target="_blank"
-            rel="noreferrer"
-            download
-            className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted/50"
-          >
-            <ArrowDownToLine size={13} aria-hidden="true" />
-            Download
-          </a>
         </div>
 
-        <div className="mt-auto border-t border-border px-3 py-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                {(user?.userName || user?.userEmail || "?").slice(0, 1).toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium leading-none">
-                  {user?.userName || "User"}
-                </p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {user?.userEmail}
-                </p>
-              </div>
+        <div className="sidebar-foot">
+          <div className="sidebar-upgrade">
+            <div className="sidebar-upgrade-eyebrow">
+              <Sparkles size={11} aria-hidden="true" /> Upgrade
             </div>
-            <button
-              onClick={handleLogout}
-              disabled={isLoading}
-              title="Logout"
-              className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted disabled:opacity-50"
-            >
-              <LogOut size={15} aria-hidden="true" />
-            </button>
+            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>Try Pro for free</div>
+            <div style={{ fontSize: 11, color: "var(--fg-muted)", marginBottom: 8 }}>
+              Multi-device, relay acceleration, snapshots.
+            </div>
+            <button className="btn btn-primary btn-sm" style={{ width: "100%" }}>Start trial</button>
           </div>
+
+          <button className="sidebar-user" onClick={handleLogout} disabled={isLoading} title="Sign out">
+            <span className="avatar">{(user?.userName || user?.userEmail || "?").slice(0, 1).toUpperCase()}</span>
+            <span className="sidebar-user-info">
+              <span className="sidebar-user-name">{user?.userName || "User"}</span>
+              <span className="sidebar-user-mail">{user?.userEmail}</span>
+            </span>
+            <LogOut size={14} color="var(--fg-subtle)" aria-hidden="true" />
+          </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="min-w-0 flex-1 overflow-auto">
-        {/* ── Devices ─────────────────────────────────────────────────────── */}
+      {/* ── Main ── */}
+      <div className="main">
+
+        {/* ── Devices ── */}
         {activeSection === "devices" && (
-          <div className="p-6">
-            <div className="flex items-center justify-between">
+          <div className="page">
+            <div className="page-head">
               <div>
-                <h1 className="text-2xl font-semibold">Devices</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Connected Windows PCs on your account.
-                </p>
+                <h2>Devices</h2>
+                <p>Connected PCs sharing storage with your account.</p>
               </div>
-              <button
-                onClick={refreshDevices}
-                disabled={isLoading}
-                className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium disabled:opacity-50"
-              >
-                <RefreshCcw size={15} className={isLoading ? "animate-spin" : ""} aria-hidden="true" />
-                Refresh
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-secondary" onClick={refreshDevices} disabled={isLoading}>
+                  <RefreshCcw size={14} className={isLoading ? "animate-spin" : ""} aria-hidden="true" /> Refresh
+                </button>
+              </div>
             </div>
 
-            {/* Stats */}
-            <div className="mt-5 grid grid-cols-3 gap-4">
-              {[
-                { label: "Connected PCs", value: devices.length },
-                { label: "Online now", value: onlineDevices },
-                { label: "Total storage", value: formatBytesDetailed(totalStorage) },
-              ].map(({ label, value }) => (
-                <div key={label} className="rounded-md border border-border bg-surface p-4">
-                  <p className="text-sm text-muted-foreground">{label}</p>
-                  <p className="mt-1.5 text-2xl font-semibold">{value}</p>
+            <div className="stats">
+              <div className="stat-card">
+                <div className="stat-card-head">
+                  <span className="stat-card-label">Connected PCs</span>
+                  <span className="stat-icon stat-icon-brand"><Computer size={16} aria-hidden="true" /></span>
                 </div>
-              ))}
+                <div className="stat-card-val">{devices.length}</div>
+                <div className="stat-card-delta stat-card-delta-up">
+                  <ArrowUpRight size={11} aria-hidden="true" /> {devices.length} total
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-head">
+                  <span className="stat-card-label">Online now</span>
+                  <span className="stat-icon stat-icon-success"><Wifi size={16} aria-hidden="true" /></span>
+                </div>
+                <div className="stat-card-val">{onlineDevices}<small>/ {devices.length}</small></div>
+                <div className="stat-card-delta">
+                  <span className="dot" style={{ background: "var(--success)" }}></span> All good
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-head">
+                  <span className="stat-card-label">Storage used</span>
+                  <span className="stat-icon"><Database size={16} aria-hidden="true" /></span>
+                </div>
+                <div className="stat-card-val">{formatBytes(totalUsed)}</div>
+                <div className="bar" style={{ marginTop: 10 }}>
+                  <div style={{ width: `${totalStorage ? (totalUsed / totalStorage) * 100 : 0}%` }}></div>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-head">
+                  <span className="stat-card-label">Total capacity</span>
+                  <span className="stat-icon"><HardDrive size={16} aria-hidden="true" /></span>
+                </div>
+                <div className="stat-card-val">{formatBytes(totalStorage)}</div>
+                <div className="stat-card-delta">
+                  <Zap size={11} color="var(--warning)" aria-hidden="true" /> Growing
+                </div>
+              </div>
             </div>
 
-            {/* Device list */}
-            <div className="mt-5 grid gap-3">
-              {devices.length === 0 ? (
-                <div className="rounded-md border border-dashed border-border bg-surface p-10 text-center">
-                  <Computer className="mx-auto text-muted-foreground" size={36} aria-hidden="true" />
-                  <p className="mt-3 font-medium">No PCs connected yet</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Install the Windows desktop app to connect your first PC.
-                  </p>
-                </div>
-              ) : (
-                devices.map((device) => {
-                  const percent = storagePercent(device);
+            {devices.length === 0 ? (
+              <div className="empty-state">
+                <Computer size={36} aria-hidden="true" />
+                <h3>No PCs connected yet</h3>
+                <p>Install the Windows desktop app to connect your first PC.</p>
+              </div>
+            ) : (
+              <div className="device-list">
+                {devices.map((device) => {
+                  const total = device.usedStorageBytes + device.storageLimitBytes;
+                  const pct = total ? (device.usedStorageBytes / total) * 100 : 0;
                   return (
-                    <div
-                      key={device.deviceId}
-                      className="rounded-md border border-border bg-surface p-4"
-                    >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-10 items-center justify-center rounded-md bg-muted">
-                            <Computer size={20} aria-hidden="true" />
-                          </div>
-                          <div>
-                            <p className="font-semibold">{device.deviceName}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {device.sharedFolderName} · {device.platform}
-                            </p>
-                          </div>
-                        </div>
+                    <div key={device.deviceId} className="device-row anim-fade-in">
+                      <div className="device-icon"><Computer size={20} aria-hidden="true" /></div>
 
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-                              device.status === "online"
-                                ? "bg-green-50 text-green-700"
-                                : "bg-slate-100 text-slate-500"
-                            }`}
-                          >
-                            {device.status}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => openDeviceStorage(device)}
-                            disabled={isLoading}
-                            title="Open storage"
-                            className="flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
-                          >
-                            <FolderOpen size={15} aria-hidden="true" />
-                            Open
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => beginEditDevice(device)}
-                            disabled={isLoading}
-                            title="Edit storage"
-                            className="flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
-                          >
-                            <Pencil size={15} aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleUnlinkDevice(device)}
-                            disabled={isLoading}
-                            title="Unlink device"
-                            className="flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                          >
-                            <Trash2 size={15} aria-hidden="true" />
-                          </button>
+                      <div>
+                        {editingDeviceId === device.deviceId ? (
+                          <form onSubmit={(e) => handleUpdateDevice(e, device)} className="edit-device-form">
+                            <input className="edit-device-input" value={editDeviceName} onChange={(e) => setEditDeviceName(e.target.value)} autoFocus />
+                            <button type="submit" disabled={isLoading} className="btn btn-primary btn-sm btn-icon"><Check size={13} aria-hidden="true" /></button>
+                            <button type="button" onClick={() => setEditingDeviceId(null)} className="btn btn-secondary btn-sm">Cancel</button>
+                          </form>
+                        ) : (
+                          <div className="device-name">{device.deviceName}</div>
+                        )}
+                        <div className="device-meta">{device.sharedFolderName}</div>
+                      </div>
+
+                      <div>
+                        <span className={`chip${device.status === "online" ? " chip-success" : ""}`}>
+                          <span className="dot"></span>{device.status}
+                        </span>
+                        <div className="caption" style={{ marginTop: 6 }}>{device.platform}</div>
+                      </div>
+
+                      <div className="device-storage">
+                        <div className="device-storage-label">
+                          <span><strong className="mono">{formatBytesDetailed(device.usedStorageBytes)}</strong> used</span>
+                          <span className="mono">{formatBytesDetailed(total)}</span>
+                        </div>
+                        <div className={`bar${pct > 80 ? " bar-warn" : ""}`}>
+                          <div style={{ width: `${pct}%` }}></div>
                         </div>
                       </div>
 
-                      {/* Edit form */}
-                      {editingDeviceId === device.deviceId && (
-                        <form
-                          onSubmit={(e) => handleUpdateDevice(e, device)}
-                          className="mt-4 flex items-end gap-2 rounded-md border border-border bg-muted/30 p-3"
-                        >
-                          <label className="grid flex-1 gap-1 text-sm font-medium">
-                            Device name
-                            <input
-                              value={editDeviceName}
-                              onChange={(e) => setEditDeviceName(e.target.value)}
-                              autoFocus
-                              className="h-9 rounded-md border border-border bg-surface px-3 font-normal outline-none focus:border-primary"
-                            />
-                          </label>
-                          <button
-                            type="submit"
-                            disabled={isLoading}
-                            title="Save"
-                            className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground disabled:opacity-50"
-                          >
-                            <Check size={16} aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingDeviceId(null)}
-                            className="h-9 rounded-md border border-border bg-surface px-3 text-sm font-medium"
-                          >
-                            Cancel
-                          </button>
-                        </form>
-                      )}
-
-                      {/* Storage bar */}
-                      <div className="mt-4">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{formatBytesDetailed(device.usedStorageBytes)} used</span>
-                          {device.storageLimitBytes > 0 && (
-                            <div className="group relative">
-                              <span className="cursor-default font-medium text-foreground">
-                                {formatBytesDetailed(device.storageLimitBytes)} free
-                              </span>
-                              <div className="pointer-events-none absolute bottom-5 right-0 z-10 hidden w-48 rounded-md border border-border bg-surface p-2.5 shadow-md group-hover:block">
-                                <div className="flex justify-between gap-2">
-                                  <span className="text-muted-foreground">Used</span>
-                                  <span className="font-medium text-foreground">{formatBytesDetailed(device.usedStorageBytes)}</span>
-                                </div>
-                                <div className="mt-1 flex justify-between gap-2">
-                                  <span className="text-muted-foreground">Free</span>
-                                  <span className="font-medium text-green-600">{formatBytesDetailed(device.storageLimitBytes)}</span>
-                                </div>
-                                <div className="mt-1.5 flex justify-between gap-2 border-t border-border pt-1.5">
-                                  <span className="text-muted-foreground">Total</span>
-                                  <span className="font-medium text-foreground">{formatBytesDetailed(device.usedStorageBytes + device.storageLimitBytes)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all"
-                            style={{ width: device.usedStorageBytes > 0 ? `max(4px, ${percent}%)` : "0%" }}
-                          />
-                        </div>
+                      <div className="device-actions">
+                        <button className="btn btn-secondary btn-sm" onClick={() => openDeviceStorage(device)}>
+                          <FolderOpen size={13} aria-hidden="true" /> Open
+                        </button>
+                        <button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => beginEditDevice(device)}>
+                          <Pencil size={13} aria-hidden="true" />
+                        </button>
+                        <button className="btn btn-ghost btn-icon btn-sm" title="Unlink" onClick={() => handleUnlinkDevice(device)}>
+                          <Trash2 size={13} aria-hidden="true" />
+                        </button>
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── Storage ─────────────────────────────────────────────────────── */}
+        {/* ── Storage ── */}
         {activeSection === "storage" && (
-          <div className="flex h-full flex-col">
-            {/* Device tabs */}
-            <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-surface px-4 py-2">
-              {devices.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No devices connected.</p>
-              ) : (
-                devices.map((device) => (
-                  <button
-                    key={device.deviceId}
-                    onClick={() => openDeviceStorage(device)}
-                    disabled={isLoading}
-                    className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
-                      selectedDeviceId === device.deviceId
-                        ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                    }`}
-                  >
-                    <Computer size={14} aria-hidden="true" />
-                    {device.deviceName}
-                    <span
-                      className={`size-1.5 rounded-full ${
-                        device.status === "online" ? "bg-green-500" : "bg-slate-300"
-                      }`}
-                    />
+          <div className="page">
+            <div className="page-head">
+              <div>
+                <h2>Storage</h2>
+                <p>Browse files across your linked devices.</p>
+              </div>
+              {selectedDevice && (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-secondary" onClick={() => setNewFolderName("")} disabled={selectedDevice.status !== "online"}>
+                    <FolderPlus size={14} aria-hidden="true" /> New folder
                   </button>
-                ))
+                  <div ref={uploadMenuRef} style={{ position: "relative" }}>
+                    <button className="btn btn-primary" onClick={() => setUploadMenuOpen((v) => !v)} disabled={isUploading || selectedDevice.status !== "online"}>
+                      {isUploading ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Upload size={14} aria-hidden="true" />}
+                      {isUploading ? "Uploading…" : "Upload"}
+                      <ChevronDown size={12} aria-hidden="true" />
+                    </button>
+                    {uploadMenuOpen && (
+                      <div className="upload-menu">
+                        <button className="upload-menu-item" onClick={() => { setUploadMenuOpen(false); uploadInputRef.current?.click(); }}>
+                          <FileText size={14} aria-hidden="true" /> Files
+                        </button>
+                        <button className="upload-menu-item" onClick={() => { setUploadMenuOpen(false); uploadFolderInputRef.current?.click(); }}>
+                          <FolderOpen size={14} aria-hidden="true" /> Folder
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
-              <button
-                onClick={() => setActiveSection("devices")}
-                className="ml-1 flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted/50"
-              >
-                <Plus size={14} aria-hidden="true" />
-                Add
+            </div>
+
+            <div className="tabs">
+              {devices.map((device) => (
+                <button key={device.deviceId} className={`tab${selectedDeviceId === device.deviceId ? " active" : ""}`} onClick={() => openDeviceStorage(device)} disabled={isLoading}>
+                  <Computer size={13} aria-hidden="true" />
+                  {device.deviceName}
+                  <span className="dot" style={{ background: device.status === "online" ? "var(--success)" : "var(--fg-subtle)", width: 6, height: 6 }}></span>
+                </button>
+              ))}
+              <button className="tab" onClick={() => setActiveSection("devices")}>
+                <Plus size={13} aria-hidden="true" /> Add
               </button>
             </div>
 
+            <input ref={uploadInputRef} type="file" multiple style={{ display: "none" }} onChange={(e) => handleUpload(e.target.files)} />
+            <input ref={uploadFolderInputRef} type="file" multiple style={{ display: "none" }} onChange={(e) => handleFolderUpload(e.target.files)}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              {...({ webkitdirectory: "" } as any)} />
+
             {!selectedDevice ? (
-              <div className="flex flex-1 flex-col items-center justify-center p-10 text-center">
-                <HardDrive className="text-muted-foreground" size={40} aria-hidden="true" />
-                <p className="mt-3 font-medium">Select a device above</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Pick a connected PC to browse its files.
-                </p>
+              <div className="empty-state">
+                <HardDrive size={40} aria-hidden="true" />
+                <h3>Select a device above</h3>
+                <p>Pick a connected PC to browse its files.</p>
               </div>
             ) : (
-              <div className="flex-1 p-6">
-                {/* Toolbar */}
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  {/* Breadcrumb — hidden while searching */}
+              <>
+                <div className="fb-toolbar">
                   {!searchQuery ? (
-                    <nav className="flex items-center gap-1 text-sm">
+                    <nav className="breadcrumb">
                       {breadcrumbs.map((crumb, i) => (
-                        <span key={crumb.path} className="flex items-center gap-1">
-                          {i > 0 && <ChevronRight size={14} className="text-muted-foreground" aria-hidden="true" />}
+                        <React.Fragment key={crumb.path}>
+                          {i > 0 && <ChevronRight size={14} aria-hidden="true" />}
                           {i < breadcrumbs.length - 1 ? (
-                            <button
-                              onClick={() => openDeviceStorage(selectedDevice, crumb.path)}
-                              className="text-muted-foreground hover:text-foreground"
-                            >
-                              {crumb.label}
-                            </button>
+                            <a href="#" onClick={(e) => { e.preventDefault(); openDeviceStorage(selectedDevice, crumb.path); }}>{crumb.label}</a>
                           ) : (
-                            <span className="font-medium">{crumb.label}</span>
+                            <span className="current">{crumb.label}</span>
                           )}
-                        </span>
+                        </React.Fragment>
                       ))}
                     </nav>
                   ) : (
-                    <p className="text-sm font-medium text-muted-foreground">
+                    <p style={{ fontSize: 14, color: "var(--fg-muted)" }}>
                       {isSearching ? "Searching…" : `${searchResults?.length ?? 0} result${searchResults?.length === 1 ? "" : "s"} for "${searchQuery}"`}
                     </p>
                   )}
-
-                  <div className="flex gap-2">
-                    {/* Search input */}
-                    <div className="relative flex items-center">
-                      <Search size={14} className="pointer-events-none absolute left-3 text-muted-foreground" aria-hidden="true" />
-                      <input
-                        type="search"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search files…"
-                        className="h-9 w-44 rounded-md border border-border bg-surface pl-8 pr-3 text-sm outline-none focus:border-primary focus:w-60 transition-all"
-                      />
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div style={{ position: "relative" }}>
+                      <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                        <Search size={14} color="var(--fg-subtle)" aria-hidden="true" />
+                      </div>
+                      <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search files…"
+                        style={{ height: 36, width: 220, paddingLeft: 36, paddingRight: 12, background: "var(--bg-elevated)", border: "1px solid var(--line-strong)", borderRadius: "var(--r-md)", fontSize: 13, color: "var(--fg)", fontFamily: "var(--font-sans)" }} />
                     </div>
-                    <button
-                      onClick={() => openDeviceStorage(selectedDevice, selectedPath)}
-                      disabled={isLoading}
-                      className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium disabled:opacity-50"
-                    >
+                    <button className="btn btn-secondary btn-sm" onClick={() => openDeviceStorage(selectedDevice, selectedPath)} disabled={isLoading}>
                       <RefreshCcw size={14} className={isLoading ? "animate-spin" : ""} aria-hidden="true" />
-                      Refresh
-                    </button>
-                    <div ref={uploadMenuRef} className="relative">
-                      <button
-                        onClick={() => setUploadMenuOpen((v) => !v)}
-                        disabled={isUploading || selectedDevice.status !== "online"}
-                        className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium disabled:opacity-50"
-                      >
-                        {isUploading
-                          ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
-                          : <Upload size={14} aria-hidden="true" />}
-                        {isUploading ? "Uploading…" : "Upload"}
-                        <ChevronDown size={12} className="text-muted-foreground" aria-hidden="true" />
-                      </button>
-                      {uploadMenuOpen && (
-                        <div className="absolute right-0 top-10 z-20 w-36 overflow-hidden rounded-md border border-border bg-surface shadow-md">
-                          <button
-                            onClick={() => { setUploadMenuOpen(false); uploadInputRef.current?.click(); }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50"
-                          >
-                            <FileText size={14} aria-hidden="true" />
-                            Files
-                          </button>
-                          <button
-                            onClick={() => { setUploadMenuOpen(false); uploadFolderInputRef.current?.click(); }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50"
-                          >
-                            <FolderOpen size={14} aria-hidden="true" />
-                            Folder
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <input
-                      ref={uploadInputRef}
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => handleUpload(e.target.files)}
-                    />
-                    <input
-                      ref={uploadFolderInputRef}
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => handleFolderUpload(e.target.files)}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      {...({ webkitdirectory: "" } as any)}
-                    />
-                    <button
-                      onClick={() => setNewFolderName("")}
-                      disabled={selectedDevice.status !== "online"}
-                      className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium disabled:opacity-50"
-                    >
-                      <FolderPlus size={14} aria-hidden="true" />
-                      New Folder
                     </button>
                   </div>
                 </div>
 
-                {/* New folder inline form */}
                 {newFolderName !== null && (
-                  <form
-                    onSubmit={handleCreateFolder}
-                    className="mt-3 flex items-center gap-2"
-                  >
-                    <div className="flex flex-1 items-center gap-2 rounded-md border border-primary bg-surface px-3">
-                      <FolderPlus size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-                      <input
-                        autoFocus
-                        value={newFolderName}
-                        onChange={(e) => setNewFolderName(e.target.value)}
-                        placeholder="Folder name"
-                        className="h-9 flex-1 bg-transparent text-sm outline-none"
-                        onKeyDown={(e) => e.key === "Escape" && setNewFolderName(null)}
-                      />
+                  <form onSubmit={handleCreateFolder}>
+                    <div className="new-folder-row">
+                      <span></span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span className="file-icon file-icon-folder"><FolderPlus size={14} aria-hidden="true" /></span>
+                        <input autoFocus value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="Folder name"
+                          onKeyDown={(e) => e.key === "Escape" && setNewFolderName(null)} />
+                        <button type="submit" disabled={!newFolderName.trim()} className="btn btn-primary btn-sm"><Check size={14} aria-hidden="true" /> Create</button>
+                        <button type="button" onClick={() => setNewFolderName(null)} className="btn btn-ghost btn-sm">Cancel</button>
+                      </div>
+                      <span></span><span></span><span></span>
                     </div>
-                    <button
-                      type="submit"
-                      disabled={!newFolderName.trim()}
-                      className="flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-50"
-                    >
-                      <Check size={14} aria-hidden="true" />
-                      Create
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewFolderName(null)}
-                      className="flex h-9 items-center px-3 text-sm text-muted-foreground hover:text-foreground"
-                    >
-                      Cancel
-                    </button>
                   </form>
                 )}
 
-                {/* Bulk action bar */}
                 {selectedFiles.size > 0 && (
-                  <div className="mt-3 flex items-center gap-3 rounded-md border border-border bg-surface px-4 py-2 text-sm">
-                    <span className="flex-1 text-muted-foreground">{selectedFiles.size} selected</span>
-                    <button
-                      onClick={handleBulkDownload}
-                      className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
-                    >
-                      <ArrowDownToLine size={13} aria-hidden="true" />
-                      Download
+                  <div className="sel-bar">
+                    <span className="sel-bar-count">{selectedFiles.size} selected</span>
+                    <button className="btn btn-sm" style={{ background: "var(--brand-600)", color: "white" }} onClick={handleBulkDownload}>
+                      <ArrowDownToLine size={13} aria-hidden="true" /> Download
                     </button>
-                    {/* Move to dropdown */}
-                    <div ref={moveMenuRef} className="relative">
-                      <button
-                        onClick={() => setMoveMenuOpen((v) => !v)}
-                        className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted/50"
-                      >
-                        <FolderOpen size={13} aria-hidden="true" />
-                        Move to
-                        <ChevronDown size={11} className="text-muted-foreground" aria-hidden="true" />
+                    <div ref={moveMenuRef} style={{ position: "relative" }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setMoveMenuOpen((v) => !v)}>
+                        <FolderOpen size={13} aria-hidden="true" /> Move <ChevronDown size={11} aria-hidden="true" />
                       </button>
                       {moveMenuOpen && (() => {
                         const moveTargets: { label: string; path: string }[] = [];
                         if (selectedPath !== "/") {
                           const parent = selectedPath.split("/").slice(0, -1).join("/") || "/";
-                          moveTargets.push({ label: parent === "/" ? "Home  /" : `↑ ${parent.split("/").pop()}`, path: parent });
+                          moveTargets.push({ label: parent === "/" ? "Home /" : `↑ ${parent.split("/").pop()}`, path: parent });
                         }
-                        files
-                          .filter((f) => f.itemType === "folder" && !selectedFiles.has(f.id))
+                        files.filter((f) => f.itemType === "folder" && !selectedFiles.has(f.id))
                           .forEach((f) => moveTargets.push({ label: f.fileName, path: f.filePath }));
                         return (
-                          <div className="absolute left-0 top-8 z-20 max-h-52 w-52 overflow-auto rounded-md border border-border bg-surface shadow-md">
+                          <div className="move-menu">
                             {moveTargets.length === 0 ? (
-                              <p className="px-3 py-2 text-xs text-muted-foreground">No folders available</p>
+                              <p style={{ padding: "9px 14px", fontSize: 13, color: "var(--fg-muted)" }}>No folders available</p>
                             ) : (
                               moveTargets.map((t) => (
-                                <button
-                                  key={t.path}
-                                  onClick={() => handleBulkMove(t.path)}
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50"
-                                >
-                                  <FolderOpen size={13} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-                                  <span className="truncate">{t.label}</span>
+                                <button key={t.path} className="move-menu-item" onClick={() => handleBulkMove(t.path)}>
+                                  <FolderOpen size={13} aria-hidden="true" /> {t.label}
                                 </button>
                               ))
                             )}
@@ -1549,36 +1389,22 @@ export function Dashboard() {
                         );
                       })()}
                     </div>
-                    <button
-                      onClick={handleBulkDelete}
-                      className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
-                    >
-                      <Trash2 size={13} aria-hidden="true" />
-                      Delete
+                    <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
+                      <Trash2 size={13} aria-hidden="true" /> Delete
                     </button>
-                    <button
-                      onClick={() => setSelectedFiles(new Set())}
-                      className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-                    >
+                    <button onClick={() => setSelectedFiles(new Set())} style={{ width: 24, height: 24, color: "var(--brand-700)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <X size={13} aria-hidden="true" />
                     </button>
                   </div>
                 )}
 
-                {/* File table */}
-                <div
-                  className={`relative mt-4 overflow-hidden rounded-md border bg-surface transition-colors ${isDragging ? "border-primary bg-primary/5" : "border-border"}`}
+                <div className="file-list"
                   onDragOver={(e) => { if (draggingFile) { e.preventDefault(); return; } e.preventDefault(); setIsDragging(true); }}
                   onDragEnter={(e) => { if (draggingFile) return; e.preventDefault(); setIsDragging(true); }}
                   onDragLeave={(e) => { if (draggingFile) return; if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
                   onDrop={(e) => { if (draggingFile) { e.preventDefault(); setDraggingFile(null); return; } handleDrop(e); }}
+                  style={isDragging ? { outline: "2px dashed var(--brand-400)", outlineOffset: -2 } : undefined}
                 >
-                  {isDragging && (
-                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-md bg-primary/10 text-sm font-medium text-primary">
-                      <Upload size={18} aria-hidden="true" />
-                      Drop files or folders to upload
-                    </div>
-                  )}
                   {(() => {
                     const raw = searchResults ?? files;
                     const displayFiles = sortKey
@@ -1590,361 +1416,264 @@ export function Dashboard() {
                           return sortDir === "asc" ? cmp : -cmp;
                         })
                       : raw;
-                    const isEmpty = displayFiles.length === 0;
 
                     if (isSearching) {
                       return (
-                        <div className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground">
-                          <Loader2 size={18} className="animate-spin" aria-hidden="true" />
-                          Searching…
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 40, fontSize: 13, color: "var(--fg-muted)" }}>
+                          <Loader2 size={18} className="animate-spin" aria-hidden="true" /> Searching…
                         </div>
                       );
                     }
 
-                    if (isEmpty) {
+                    if (displayFiles.length === 0) {
                       return (
-                        <div className="p-10 text-center">
-                          <FolderOpen className="mx-auto text-muted-foreground" size={36} aria-hidden="true" />
-                          <p className="mt-3 font-medium">
-                            {searchResults !== null ? "No files found" : "This folder is empty"}
-                          </p>
-                          {searchResults !== null && (
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              Try a different search term.
-                            </p>
-                          )}
+                        <div className="empty-state" style={{ border: "none" }}>
+                          <FolderOpen size={36} aria-hidden="true" />
+                          <h3>{searchResults !== null ? "No files found" : "This folder is empty"}</h3>
+                          {searchResults !== null && <p>Try a different search term.</p>}
+                          {isDragging && <p style={{ color: "var(--brand-600)", fontWeight: 500 }}>Drop files to upload</p>}
                         </div>
                       );
                     }
 
                     return (
                       <>
-                        <div className="grid grid-cols-[32px_1fr_110px_160px_148px] border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
-                          <input
-                            type="checkbox"
-                            className="mt-0.5 cursor-pointer"
+                        <div className="file-header">
+                          <input type="checkbox"
                             checked={displayFiles.length > 0 && displayFiles.every((f) => selectedFiles.has(f.id))}
-                            onChange={(e) => {
-                              if (e.target.checked) setSelectedFiles(new Set(displayFiles.map((f) => f.id)));
-                              else setSelectedFiles(new Set());
-                            }}
-                          />
-                          <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-foreground">
-                            Name
-                            {sortKey === "name" ? (sortDir === "asc" ? " ↑" : " ↓") : <ArrowUpDown size={11} className="opacity-40" />}
-                          </button>
-                          <button onClick={() => handleSort("size")} className="flex items-center gap-1 hover:text-foreground">
-                            Size
-                            {sortKey === "size" ? (sortDir === "asc" ? " ↑" : " ↓") : <ArrowUpDown size={11} className="opacity-40" />}
-                          </button>
-                          <button onClick={() => handleSort("date")} className="flex items-center gap-1 hover:text-foreground">
-                            Modified
-                            {sortKey === "date" ? (sortDir === "asc" ? " ↑" : " ↓") : <ArrowUpDown size={11} className="opacity-40" />}
-                          </button>
-                          <span />
+                            onChange={(e) => { if (e.target.checked) setSelectedFiles(new Set(displayFiles.map((f) => f.id))); else setSelectedFiles(new Set()); }} />
+                          <button onClick={() => handleSort("name")}>Name {sortKey === "name" ? (sortDir === "asc" ? "↑" : "↓") : <ArrowUpDown size={11} aria-hidden="true" />}</button>
+                          <button onClick={() => handleSort("size")}>Size {sortKey === "size" ? (sortDir === "asc" ? "↑" : "↓") : <ArrowUpDown size={11} aria-hidden="true" />}</button>
+                          <button onClick={() => handleSort("date")}>Modified {sortKey === "date" ? (sortDir === "asc" ? "↑" : "↓") : <ArrowUpDown size={11} aria-hidden="true" />}</button>
+                          <span></span>
                         </div>
-                        <div className="divide-y divide-border">
-                          {displayFiles.map((file) => {
-                            const isViewable = file.itemType === "file" && (
-                              file.mimeType?.startsWith("image/") ||
-                              file.mimeType?.startsWith("text/") ||
-                              file.mimeType?.startsWith("audio/") ||
-                              file.mimeType?.startsWith("video/") ||
-                              file.mimeType === "application/pdf" ||
-                              file.mimeType === "application/json" ||
-                              file.mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-                              file.mimeType === "application/vnd.ms-excel"
-                            );
-                            const isRenaming = renamingFile?.id === file.id;
-                            const isSelected = selectedFiles.has(file.id);
-                            return (
-                              <div
-                                key={file.id}
-                                draggable={!isRenaming}
-                                onDragStart={(e) => { setDraggingFile(file); e.dataTransfer.effectAllowed = "move"; }}
-                                onDragEnd={() => { setDraggingFile(null); setDragOverFolderId(null); }}
-                                onDragOver={file.itemType === "folder" && !isRenaming ? (e) => {
-                                  if (!draggingFile || draggingFile.id === file.id) return;
-                                  e.preventDefault(); e.stopPropagation();
-                                  e.dataTransfer.dropEffect = "move";
-                                  setDragOverFolderId(file.id);
-                                } : undefined}
-                                onDragLeave={file.itemType === "folder" ? (e) => {
-                                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverFolderId(null);
-                                } : undefined}
-                                onDrop={file.itemType === "folder" && !isRenaming ? (e) => {
-                                  e.preventDefault(); e.stopPropagation();
-                                  setDragOverFolderId(null);
-                                  if (draggingFile && draggingFile.id !== file.id) {
-                                    handleMoveFile(draggingFile, file.filePath);
-                                    setDraggingFile(null);
-                                  }
-                                } : undefined}
-                                onClick={() => {
-                                  if (file.itemType === "folder" && !isRenaming) {
-                                    openDeviceStorage(selectedDevice, file.filePath);
-                                  }
-                                }}
-                                className={`grid grid-cols-[32px_1fr_110px_160px_148px] items-center px-4 py-3 text-sm ${isSelected ? "bg-primary/5" : ""} ${dragOverFolderId === file.id ? "bg-primary/10 ring-1 ring-inset ring-primary/30" : ""} ${
-                                  file.itemType === "folder" && !isRenaming
-                                    ? "cursor-pointer hover:bg-muted/30"
-                                    : "hover:bg-muted/10"
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="mt-0.5 cursor-pointer"
-                                  checked={isSelected}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={() => toggleSelect(file.id)}
-                                />
+                        {displayFiles.map((file) => {
+                          const isViewable = file.itemType === "file" && (
+                            file.mimeType?.startsWith("image/") || file.mimeType?.startsWith("text/") ||
+                            file.mimeType?.startsWith("audio/") || file.mimeType?.startsWith("video/") ||
+                            file.mimeType === "application/pdf" || file.mimeType === "application/json" ||
+                            file.mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+                            file.mimeType === "application/vnd.ms-excel"
+                          );
+                          const isRenaming = renamingFile?.id === file.id;
+                          const isSel = selectedFiles.has(file.id);
+                          const iconCls = file.itemType === "folder" ? "file-icon-folder"
+                            : file.mimeType?.startsWith("image/") ? "file-icon-image"
+                            : file.mimeType?.startsWith("video/") ? "file-icon-video"
+                            : "file-icon-doc";
+                          const FileIcon = file.itemType === "folder" ? FolderOpen
+                            : file.mimeType?.startsWith("image/") ? ImageIcon
+                            : FileText;
+                          const dlPct = fileProgress[file.id];
+                          const upKey = `upload:${selectedPath === "/" ? `/${file.fileName}` : `${selectedPath}/${file.fileName}`}`;
+                          const upPct = fileProgress[upKey];
+                          const xferPct = dlPct ?? upPct;
+
+                          return (
+                            <div key={file.id}
+                              className={`file-row${isSel ? " selected" : ""}${file.itemType === "folder" && !isRenaming ? " folder" : ""}${dragOverFolderId === file.id ? " selected" : ""}`}
+                              draggable={!isRenaming}
+                              onDragStart={(e) => { setDraggingFile(file); e.dataTransfer.effectAllowed = "move"; }}
+                              onDragEnd={() => { setDraggingFile(null); setDragOverFolderId(null); }}
+                              onDragOver={file.itemType === "folder" && !isRenaming ? (e) => {
+                                if (!draggingFile || draggingFile.id === file.id) return;
+                                e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move"; setDragOverFolderId(file.id);
+                              } : undefined}
+                              onDragLeave={file.itemType === "folder" ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverFolderId(null); } : undefined}
+                              onDrop={file.itemType === "folder" && !isRenaming ? (e) => {
+                                e.preventDefault(); e.stopPropagation(); setDragOverFolderId(null);
+                                if (draggingFile && draggingFile.id !== file.id) { handleMoveFile(draggingFile, file.filePath); setDraggingFile(null); }
+                              } : undefined}
+                              onClick={() => { if (file.itemType === "folder" && !isRenaming) openDeviceStorage(selectedDevice, file.filePath); }}
+                            >
+                              <input type="checkbox" checked={isSel} onClick={(e) => e.stopPropagation()} onChange={() => toggleSelect(file.id)} />
+                              <div className="file-name">
+                                <span className={`file-icon ${iconCls}`}><FileIcon size={14} aria-hidden="true" /></span>
                                 {isRenaming ? (
-                                  <form
-                                    onSubmit={(e) => handleRenameItem(e, file)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="flex min-w-0 items-center gap-2"
-                                  >
-                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                                      {file.itemType === "folder" ? (
-                                        <FolderOpen size={16} aria-hidden="true" />
-                                      ) : (
-                                        <FileText size={16} aria-hidden="true" />
-                                      )}
-                                    </div>
-                                    <input
-                                      autoFocus
-                                      value={renamingFile.name}
+                                  <form onSubmit={(e) => handleRenameItem(e, file)} onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+                                    <input autoFocus className="rename-input" value={renamingFile.name}
                                       onChange={(e) => setRenamingFile({ id: file.id, name: e.target.value })}
-                                      onKeyDown={(e) => e.key === "Escape" && setRenamingFile(null)}
-                                      className="h-7 min-w-0 flex-1 rounded border border-primary px-2 text-sm outline-none"
-                                    />
-                                    <button type="submit" title="Save" className="flex size-7 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground">
-                                      <Check size={13} aria-hidden="true" />
-                                    </button>
+                                      onKeyDown={(e) => e.key === "Escape" && setRenamingFile(null)} />
+                                    <button type="submit" className="btn btn-primary btn-sm btn-icon"><Check size={13} aria-hidden="true" /></button>
                                   </form>
                                 ) : (
-                                  <div className="flex min-w-0 items-center gap-3">
-                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                                      {file.itemType === "folder" ? (
-                                        <FolderOpen size={16} aria-hidden="true" />
-                                      ) : (
-                                        <FileText size={16} aria-hidden="true" />
-                                      )}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="truncate font-medium">{file.fileName}</p>
-                                      {searchResults !== null && (
-                                        <p className="truncate text-xs text-muted-foreground">{file.parentPath}</p>
-                                      )}
-                                    </div>
+                                  <div style={{ minWidth: 0 }}>
+                                    <div className="file-name-text">{file.fileName}</div>
+                                    {searchResults !== null && <div style={{ fontSize: 11, color: "var(--fg-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.parentPath}</div>}
                                   </div>
                                 )}
-                                <span className="text-muted-foreground">
-                                  {file.itemType === "folder" ? "—" : formatBytes(file.sizeBytes)}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {formatDate(file.modifiedAt)}
-                                </span>
-                                <span className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                  {(() => {
-                                    const dlPct = fileProgress[file.id];
-                                    const upKey = `upload:${selectedPath === "/" ? `/${file.fileName}` : `${selectedPath}/${file.fileName}`}`;
-                                    const upPct = fileProgress[upKey];
-                                    const pct = dlPct ?? upPct;
-                                    if (pct !== undefined) {
-                                      return (
-                                        <div className="flex w-full flex-col items-end gap-1 pr-1">
-                                          <span className="text-xs text-muted-foreground">
-                                            {dlPct !== undefined ? "Downloading" : "Uploading"} {pct}%
-                                          </span>
-                                          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                                            <div
-                                              className="h-full rounded-full bg-primary transition-all duration-200"
-                                              style={{ width: `${pct}%` }}
-                                            />
-                                          </div>
-                                        </div>
-                                      );
-                                    }
-                                    return (
-                                      <>
-                                        {isViewable && (
-                                          <button
-                                            type="button"
-                                            onClick={() => handlePreview(file)}
-                                            disabled={previewLoadingFile === file.id}
-                                            title="Preview"
-                                            className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                                          >
-                                            {previewLoadingFile === file.id
-                                              ? <Loader2 size={15} className="animate-spin" aria-hidden="true" />
-                                              : <Eye size={15} aria-hidden="true" />}
-                                          </button>
-                                        )}
-                                        {file.itemType === "file" && (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDownload(file)}
-                                            title="Download"
-                                            className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                                          >
-                                            <ArrowDownToLine size={15} aria-hidden="true" />
-                                          </button>
-                                        )}
-                                        <button
-                                          type="button"
-                                          onClick={() => setRenamingFile({ id: file.id, name: file.fileName })}
-                                          title="Rename"
-                                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                                        >
-                                          <Pencil size={15} aria-hidden="true" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleDeleteFile(file)}
-                                          title="Delete"
-                                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600"
-                                        >
-                                          <Trash2 size={15} aria-hidden="true" />
-                                        </button>
-                                      </>
-                                    );
-                                  })()}
-                                </span>
                               </div>
-                            );
-                          })}
-                        </div>
+                              <span className="file-meta file-meta-mono">{file.itemType === "folder" ? "—" : formatBytes(file.sizeBytes)}</span>
+                              <span className="file-meta">{formatDate(file.modifiedAt)}</span>
+                              <div className="file-actions" onClick={(e) => e.stopPropagation()}>
+                                {xferPct !== undefined ? (
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flex: 1 }}>
+                                    <span style={{ fontSize: 11, color: "var(--fg-muted)" }}>{dlPct !== undefined ? "↓" : "↑"} {xferPct}%</span>
+                                    <div className="bar" style={{ width: 80 }}><div style={{ width: `${xferPct}%` }}></div></div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {isViewable && (
+                                      <button className="file-action-btn" title="Preview" onClick={() => handlePreview(file)} disabled={previewLoadingFile === file.id}>
+                                        {previewLoadingFile === file.id ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
+                                      </button>
+                                    )}
+                                    {file.itemType === "file" && (
+                                      <button className="file-action-btn" title="Download" onClick={() => handleDownload(file)}>
+                                        <ArrowDownToLine size={14} aria-hidden="true" />
+                                      </button>
+                                    )}
+                                    <button className="file-action-btn" title="Rename" onClick={() => setRenamingFile({ id: file.id, name: file.fileName })}>
+                                      <Pencil size={14} aria-hidden="true" />
+                                    </button>
+                                    <button className="file-action-btn" title="Delete" onClick={() => handleDeleteFile(file)}>
+                                      <Trash2 size={14} aria-hidden="true" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </>
                     );
                   })()}
                 </div>
-              </div>
+              </>
             )}
           </div>
         )}
 
-        {/* ── Security ────────────────────────────────────────────────────── */}
-        {activeSection === "security" && (
-          <div className="p-6">
-            <div className="mb-5">
-              <h1 className="text-2xl font-semibold">Security</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Device sessions and access information.
-              </p>
+        {/* ── Activity ── */}
+        {activeSection === "activity" && (
+          <div className="page">
+            <div className="page-head">
+              <div><h2>Activity</h2><p>Recent file operations and sync events.</p></div>
             </div>
-
-            <div className="rounded-md border border-border bg-surface">
-              {devices.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">
-                  No devices linked to this account.
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-[1fr_120px_100px_160px] border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
-                    <span>Device</span>
-                    <span>Platform</span>
-                    <span>Status</span>
-                    <span>Last seen</span>
-                  </div>
-                  <div className="divide-y divide-border">
-                    {devices.map((device) => (
-                      <div
-                        key={device.deviceId}
-                        className="grid grid-cols-[1fr_120px_100px_160px] items-center px-4 py-3 text-sm"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-8 items-center justify-center rounded-md bg-muted">
-                            <Computer size={15} aria-hidden="true" />
-                          </div>
-                          <span className="font-medium">{device.deviceName}</span>
-                        </div>
-                        <span className="text-muted-foreground">{device.platform}</span>
-                        <span
-                          className={`w-fit rounded-md px-2 py-0.5 text-xs font-medium ${
-                            device.status === "online"
-                              ? "bg-green-50 text-green-700"
-                              : "bg-slate-100 text-slate-500"
-                          }`}
-                        >
-                          {device.status}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {formatDate(device.lastSeen)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+            <div className="empty-state">
+              <Activity size={36} aria-hidden="true" />
+              <h3>Activity log</h3>
+              <p>Activity tracking coming soon.</p>
             </div>
           </div>
         )}
-      </main>
 
-      {/* Preview modal */}
-      {previewState && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={closePreview}
-        >
-          <div
-            className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-surface shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <span className="truncate text-sm font-medium">{previewState.name}</span>
-              <button
-                onClick={closePreview}
-                className="ml-4 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
+        {/* ── Security ── */}
+        {activeSection === "security" && (
+          <div className="page page-narrow">
+            <div className="page-head">
+              <div><h2>Security</h2><p>Manage devices, active sessions, and authentication.</p></div>
             </div>
-            <div className="flex flex-1 overflow-auto bg-muted/20">
-              {previewState.type === "image" && (
-                <img
-                  src={previewState.url}
-                  alt={previewState.name}
-                  className="m-auto max-h-[80vh] max-w-full object-contain p-4"
-                />
-              )}
-              {previewState.type === "pdf" && (
-                <iframe
-                  src={previewState.url}
-                  title={previewState.name}
-                  className="h-[80vh] w-full"
-                />
-              )}
-              {previewState.type === "text" && (
-                <pre className="h-[80vh] w-full overflow-auto p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words">
-                  {previewState.content}
-                </pre>
-              )}
-              {previewState.type === "spreadsheet" && (
-                <div className="h-[80vh] w-full overflow-auto p-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_td]:text-sm [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:px-2 [&_th]:py-1 [&_th]:text-sm [&_th]:font-medium">
-                  <div dangerouslySetInnerHTML={{ __html: previewState.html }} />
+
+            <div className="settings-section">
+              <h3>Two-factor authentication</h3>
+              <p className="caption">An extra layer of security for your account.</p>
+              <div className="settings-row">
+                <div className="settings-row-info">
+                  <div className="settings-row-name">Email codes</div>
+                  <div className="settings-row-desc">A 6-digit code is sent to <span className="mono">{user?.userEmail}</span> for sensitive actions.</div>
                 </div>
-              )}
-              {previewState.type === "audio" && (
-                <div className="flex w-full items-center justify-center p-10">
-                  <audio controls src={previewState.url} className="w-full max-w-lg" />
+                <span className="chip chip-success"><span className="dot"></span>Enabled</span>
+              </div>
+              <div className="settings-row">
+                <div className="settings-row-info">
+                  <div className="settings-row-name">Authenticator app</div>
+                  <div className="settings-row-desc">TOTP via Google Authenticator, 1Password, etc.</div>
                 </div>
-              )}
-              {previewState.type === "video" && (
-                <video controls src={previewState.url} className="h-[80vh] w-full bg-black object-contain" />
-              )}
+                <button className="btn btn-secondary btn-sm">Set up</button>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>Linked devices</h3>
+              <p className="caption">PCs running the PC2CLOUD desktop client.</p>
+              {devices.length === 0 ? (
+                <p style={{ fontSize: 14, color: "var(--fg-muted)" }}>No devices linked to this account.</p>
+              ) : devices.map((device) => (
+                <div key={device.deviceId} className="settings-row">
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", flex: 1 }}>
+                    <span className="stat-icon"><Computer size={15} aria-hidden="true" /></span>
+                    <div className="settings-row-info">
+                      <div className="settings-row-name">{device.deviceName}</div>
+                      <div className="settings-row-desc">{device.platform} · last seen {formatDate(device.lastSeen)}</div>
+                    </div>
+                  </div>
+                  <span className={`chip${device.status === "online" ? " chip-success" : ""}`}>
+                    <span className="dot"></span>{device.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Settings ── */}
+        {activeSection === "settings" && (
+          <div className="page page-narrow">
+            <div className="page-head">
+              <div><h2>Settings</h2><p>Manage your account and preferences.</p></div>
+            </div>
+            <div className="settings-section">
+              <h3>Profile</h3>
+              <p className="caption">Your account information.</p>
+              <div className="settings-row">
+                <div className="settings-row-info">
+                  <div className="settings-row-name">{user?.userName || "User"}</div>
+                  <div className="settings-row-desc">{user?.userEmail}</div>
+                </div>
+                <button className="btn btn-secondary btn-sm">Edit</button>
+              </div>
+            </div>
+            <div className="settings-section">
+              <h3>Danger zone</h3>
+              <p className="caption">Irreversible actions.</p>
+              <div className="settings-row">
+                <div className="settings-row-info">
+                  <div className="settings-row-name">Sign out</div>
+                  <div className="settings-row-desc">Sign out of your account on this device.</div>
+                </div>
+                <button className="btn btn-danger btn-sm" onClick={handleLogout} disabled={isLoading}>Sign out</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Help ── */}
+        {activeSection === "help" && (
+          <div className="page page-narrow">
+            <div className="page-head">
+              <div><h2>Help</h2><p>Documentation and support.</p></div>
+            </div>
+            <div className="empty-state">
+              <Globe size={36} aria-hidden="true" />
+              <h3>Documentation</h3>
+              <p>Help articles and guides coming soon.</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Preview modal ── */}
+      {previewState && (
+        <div className="preview-backdrop" onClick={closePreview}>
+          <div style={{ position: "relative", maxWidth: 900, width: "100%", maxHeight: "90vh", display: "flex", flexDirection: "column", background: "var(--bg-elevated)", borderRadius: "var(--r-xl)", overflow: "hidden", boxShadow: "var(--shadow-lg)" }}
+            onClick={(e) => e.stopPropagation()}>
+            <button className="preview-close" onClick={closePreview}><X size={16} aria-hidden="true" /></button>
+            <div style={{ padding: "16px 52px 16px 20px", borderBottom: "1px solid var(--line)", fontSize: 14, fontWeight: 500 }}>{previewState.name}</div>
+            <div style={{ flex: 1, overflow: "auto", background: "var(--bg-subtle)" }}>
+              {previewState.type === "image" && <img src={previewState.url} alt={previewState.name} style={{ maxWidth: "100%", maxHeight: "80vh", objectFit: "contain", display: "block", margin: "auto", padding: 16 }} />}
+              {previewState.type === "pdf" && <iframe src={previewState.url} title={previewState.name} style={{ width: "100%", height: "80vh", border: "none" }} />}
+              {previewState.type === "text" && <pre style={{ padding: 20, fontSize: 13, fontFamily: "var(--font-mono)", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-all", height: "80vh", overflow: "auto", margin: 0 }}>{previewState.content}</pre>}
+              {previewState.type === "spreadsheet" && <div style={{ padding: 20, height: "80vh", overflow: "auto" }} dangerouslySetInnerHTML={{ __html: previewState.html }} />}
+              {previewState.type === "audio" && <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}><audio controls src={previewState.url} style={{ width: "100%", maxWidth: 480 }} /></div>}
+              {previewState.type === "video" && <video controls src={previewState.url} style={{ width: "100%", maxHeight: "80vh", background: "black", display: "block" }} />}
             </div>
           </div>
         </div>
       )}
 
-      {/* Toast */}
-      {toastMessage && (
-        <div className="fixed bottom-5 right-5 rounded-md border border-border bg-surface px-4 py-3 text-sm shadow-lg">
-          {toastMessage}
-        </div>
-      )}
+      {/* ── Toast ── */}
+      {toastMessage && <div className="toast">{toastMessage}</div>}
     </div>
   );
 }
