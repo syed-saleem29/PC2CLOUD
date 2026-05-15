@@ -893,25 +893,28 @@ export function Dashboard() {
       <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
         <div className="w-full max-w-sm">
           <div className="mb-6 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Cloud size={20} aria-hidden="true" />
+            <div className="relative">
+              <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl" />
+              <div className="relative flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-800 shadow-lg shadow-primary/30">
+                <Cloud size={22} className="text-white" aria-hidden="true" />
+              </div>
             </div>
             <div>
-              <p className="text-lg font-semibold">PC2CLOUD</p>
+              <p className="text-lg font-semibold tracking-wide">PC2CLOUD</p>
               <p className="text-sm text-muted-foreground">Private storage</p>
             </div>
           </div>
 
           {/* ── Login / Register ── */}
           {authScreen === "credentials" && (
-            <form onSubmit={handleAuth} className="rounded-md border border-border bg-white p-5 shadow-soft">
+            <form onSubmit={handleAuth} className="rounded-md border border-border bg-surface p-5 shadow-soft">
               <div className="grid grid-cols-2 rounded-md bg-muted p-1 text-sm">
                 <button type="button" onClick={() => { setMode("login"); setConfirmPassword(""); setAuthMessage(""); }}
-                  className={`rounded-md px-3 py-2 font-medium ${mode === "login" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>
+                  className={`rounded-md px-3 py-2 font-medium ${mode === "login" ? "bg-surface shadow-sm" : "text-muted-foreground"}`}>
                   Login
                 </button>
                 <button type="button" onClick={() => { setMode("register"); setAuthMessage(""); }}
-                  className={`rounded-md px-3 py-2 font-medium ${mode === "register" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>
+                  className={`rounded-md px-3 py-2 font-medium ${mode === "register" ? "bg-surface shadow-sm" : "text-muted-foreground"}`}>
                   Register
                 </button>
               </div>
@@ -951,7 +954,7 @@ export function Dashboard() {
 
           {/* ── Verify email OTP ── */}
           {authScreen === "verify-email" && (
-            <form onSubmit={handleVerifyEmail} className="rounded-md border border-border bg-white p-5 shadow-soft">
+            <form onSubmit={handleVerifyEmail} className="rounded-md border border-border bg-surface p-5 shadow-soft">
               <h2 className="font-semibold">Verify your email</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Enter the 6-digit code sent to <span className="font-medium text-foreground">{pendingEmail}</span>
@@ -982,7 +985,7 @@ export function Dashboard() {
 
           {/* ── Forgot password — enter email ── */}
           {authScreen === "forgot-email" && (
-            <form onSubmit={handleForgotEmail} className="rounded-md border border-border bg-white p-5 shadow-soft">
+            <form onSubmit={handleForgotEmail} className="rounded-md border border-border bg-surface p-5 shadow-soft">
               <h2 className="font-semibold">Forgot password</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Enter your email and we&apos;ll send you a reset code.
@@ -1004,7 +1007,7 @@ export function Dashboard() {
 
           {/* ── Reset password — OTP + new password ── */}
           {authScreen === "reset-password" && (
-            <form onSubmit={handleResetPassword} className="rounded-md border border-border bg-white p-5 shadow-soft">
+            <form onSubmit={handleResetPassword} className="rounded-md border border-border bg-surface p-5 shadow-soft">
               <h2 className="font-semibold">Reset password</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Code sent to <span className="font-medium text-foreground">{pendingEmail}</span>
@@ -1052,10 +1055,13 @@ export function Dashboard() {
   return (
     <div className="flex min-h-screen bg-muted/20">
       {/* Sidebar */}
-      <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-white">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-surface">
         <div className="flex items-center gap-2.5 px-4 py-5">
-          <img src="/icon-192.png" alt="PC2CLOUD" className="size-8 rounded-md" />
-          <p className="font-semibold">PC2CLOUD</p>
+          <div className="relative flex size-8 shrink-0 items-center justify-center rounded-[7px] bg-gradient-to-br from-blue-500 to-blue-800 shadow-md">
+            <div className="absolute inset-0 rounded-[7px] bg-gradient-to-b from-white/15 to-transparent" />
+            <Cloud size={16} className="relative z-10 text-white" aria-hidden="true" />
+          </div>
+          <p className="font-semibold tracking-wide">PC2CLOUD</p>
         </div>
 
         <nav className="grid gap-0.5 px-2 text-sm">
@@ -1138,7 +1144,7 @@ export function Dashboard() {
               <button
                 onClick={refreshDevices}
                 disabled={isLoading}
-                className="flex h-9 items-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-medium disabled:opacity-50"
+                className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium disabled:opacity-50"
               >
                 <RefreshCcw size={15} className={isLoading ? "animate-spin" : ""} aria-hidden="true" />
                 Refresh
@@ -1152,7 +1158,7 @@ export function Dashboard() {
                 { label: "Online now", value: onlineDevices },
                 { label: "Total storage", value: formatBytesDetailed(totalStorage) },
               ].map(({ label, value }) => (
-                <div key={label} className="rounded-md border border-border bg-white p-4">
+                <div key={label} className="rounded-md border border-border bg-surface p-4">
                   <p className="text-sm text-muted-foreground">{label}</p>
                   <p className="mt-1.5 text-2xl font-semibold">{value}</p>
                 </div>
@@ -1162,7 +1168,7 @@ export function Dashboard() {
             {/* Device list */}
             <div className="mt-5 grid gap-3">
               {devices.length === 0 ? (
-                <div className="rounded-md border border-dashed border-border bg-white p-10 text-center">
+                <div className="rounded-md border border-dashed border-border bg-surface p-10 text-center">
                   <Computer className="mx-auto text-muted-foreground" size={36} aria-hidden="true" />
                   <p className="mt-3 font-medium">No PCs connected yet</p>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -1175,7 +1181,7 @@ export function Dashboard() {
                   return (
                     <div
                       key={device.deviceId}
-                      className="rounded-md border border-border bg-white p-4"
+                      className="rounded-md border border-border bg-surface p-4"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
@@ -1243,7 +1249,7 @@ export function Dashboard() {
                               value={editDeviceName}
                               onChange={(e) => setEditDeviceName(e.target.value)}
                               autoFocus
-                              className="h-9 rounded-md border border-border bg-white px-3 font-normal outline-none focus:border-primary"
+                              className="h-9 rounded-md border border-border bg-surface px-3 font-normal outline-none focus:border-primary"
                             />
                           </label>
                           <button
@@ -1257,7 +1263,7 @@ export function Dashboard() {
                           <button
                             type="button"
                             onClick={() => setEditingDeviceId(null)}
-                            className="h-9 rounded-md border border-border bg-white px-3 text-sm font-medium"
+                            className="h-9 rounded-md border border-border bg-surface px-3 text-sm font-medium"
                           >
                             Cancel
                           </button>
@@ -1273,7 +1279,7 @@ export function Dashboard() {
                               <span className="cursor-default font-medium text-foreground">
                                 {formatBytesDetailed(device.storageLimitBytes)} free
                               </span>
-                              <div className="pointer-events-none absolute bottom-5 right-0 z-10 hidden w-48 rounded-md border border-border bg-white p-2.5 shadow-md group-hover:block">
+                              <div className="pointer-events-none absolute bottom-5 right-0 z-10 hidden w-48 rounded-md border border-border bg-surface p-2.5 shadow-md group-hover:block">
                                 <div className="flex justify-between gap-2">
                                   <span className="text-muted-foreground">Used</span>
                                   <span className="font-medium text-foreground">{formatBytesDetailed(device.usedStorageBytes)}</span>
@@ -1309,7 +1315,7 @@ export function Dashboard() {
         {activeSection === "storage" && (
           <div className="flex h-full flex-col">
             {/* Device tabs */}
-            <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-white px-4 py-2">
+            <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-surface px-4 py-2">
               {devices.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No devices connected.</p>
               ) : (
@@ -1389,13 +1395,13 @@ export function Dashboard() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search files…"
-                        className="h-9 w-44 rounded-md border border-border bg-white pl-8 pr-3 text-sm outline-none focus:border-primary focus:w-60 transition-all"
+                        className="h-9 w-44 rounded-md border border-border bg-surface pl-8 pr-3 text-sm outline-none focus:border-primary focus:w-60 transition-all"
                       />
                     </div>
                     <button
                       onClick={() => openDeviceStorage(selectedDevice, selectedPath)}
                       disabled={isLoading}
-                      className="flex h-9 items-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-medium disabled:opacity-50"
+                      className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium disabled:opacity-50"
                     >
                       <RefreshCcw size={14} className={isLoading ? "animate-spin" : ""} aria-hidden="true" />
                       Refresh
@@ -1404,7 +1410,7 @@ export function Dashboard() {
                       <button
                         onClick={() => setUploadMenuOpen((v) => !v)}
                         disabled={isUploading || selectedDevice.status !== "online"}
-                        className="flex h-9 items-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-medium disabled:opacity-50"
+                        className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium disabled:opacity-50"
                       >
                         {isUploading
                           ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
@@ -1413,7 +1419,7 @@ export function Dashboard() {
                         <ChevronDown size={12} className="text-muted-foreground" aria-hidden="true" />
                       </button>
                       {uploadMenuOpen && (
-                        <div className="absolute right-0 top-10 z-20 w-36 overflow-hidden rounded-md border border-border bg-white shadow-md">
+                        <div className="absolute right-0 top-10 z-20 w-36 overflow-hidden rounded-md border border-border bg-surface shadow-md">
                           <button
                             onClick={() => { setUploadMenuOpen(false); uploadInputRef.current?.click(); }}
                             className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50"
@@ -1450,7 +1456,7 @@ export function Dashboard() {
                     <button
                       onClick={() => setNewFolderName("")}
                       disabled={selectedDevice.status !== "online"}
-                      className="flex h-9 items-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-medium disabled:opacity-50"
+                      className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium disabled:opacity-50"
                     >
                       <FolderPlus size={14} aria-hidden="true" />
                       New Folder
@@ -1464,7 +1470,7 @@ export function Dashboard() {
                     onSubmit={handleCreateFolder}
                     className="mt-3 flex items-center gap-2"
                   >
-                    <div className="flex flex-1 items-center gap-2 rounded-md border border-primary bg-white px-3">
+                    <div className="flex flex-1 items-center gap-2 rounded-md border border-primary bg-surface px-3">
                       <FolderPlus size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
                       <input
                         autoFocus
@@ -1495,7 +1501,7 @@ export function Dashboard() {
 
                 {/* Bulk action bar */}
                 {selectedFiles.size > 0 && (
-                  <div className="mt-3 flex items-center gap-3 rounded-md border border-border bg-white px-4 py-2 text-sm">
+                  <div className="mt-3 flex items-center gap-3 rounded-md border border-border bg-surface px-4 py-2 text-sm">
                     <span className="flex-1 text-muted-foreground">{selectedFiles.size} selected</span>
                     <button
                       onClick={handleBulkDownload}
@@ -1524,7 +1530,7 @@ export function Dashboard() {
                           .filter((f) => f.itemType === "folder" && !selectedFiles.has(f.id))
                           .forEach((f) => moveTargets.push({ label: f.fileName, path: f.filePath }));
                         return (
-                          <div className="absolute left-0 top-8 z-20 max-h-52 w-52 overflow-auto rounded-md border border-border bg-white shadow-md">
+                          <div className="absolute left-0 top-8 z-20 max-h-52 w-52 overflow-auto rounded-md border border-border bg-surface shadow-md">
                             {moveTargets.length === 0 ? (
                               <p className="px-3 py-2 text-xs text-muted-foreground">No folders available</p>
                             ) : (
@@ -1561,7 +1567,7 @@ export function Dashboard() {
 
                 {/* File table */}
                 <div
-                  className={`relative mt-4 overflow-hidden rounded-md border bg-white transition-colors ${isDragging ? "border-primary bg-primary/5" : "border-border"}`}
+                  className={`relative mt-4 overflow-hidden rounded-md border bg-surface transition-colors ${isDragging ? "border-primary bg-primary/5" : "border-border"}`}
                   onDragOver={(e) => { if (draggingFile) { e.preventDefault(); return; } e.preventDefault(); setIsDragging(true); }}
                   onDragEnter={(e) => { if (draggingFile) return; e.preventDefault(); setIsDragging(true); }}
                   onDragLeave={(e) => { if (draggingFile) return; if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
@@ -1828,7 +1834,7 @@ export function Dashboard() {
               </p>
             </div>
 
-            <div className="rounded-md border border-border bg-white">
+            <div className="rounded-md border border-border bg-surface">
               {devices.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
                   No devices linked to this account.
@@ -1883,7 +1889,7 @@ export function Dashboard() {
           onClick={closePreview}
         >
           <div
-            className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+            className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-surface shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -1935,7 +1941,7 @@ export function Dashboard() {
 
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 rounded-md border border-border bg-white px-4 py-3 text-sm shadow-lg">
+        <div className="fixed bottom-5 right-5 rounded-md border border-border bg-surface px-4 py-3 text-sm shadow-lg">
           {toastMessage}
         </div>
       )}

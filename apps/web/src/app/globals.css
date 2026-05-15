@@ -4,42 +4,118 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Tailwind-mapped tokens ── */
 :root {
-  --background: 217 14% 97%;        /* #f7f8fa */
-  --foreground: 221 45% 7%;         /* #0a0f1a */
-  --muted: 220 20% 95%;             /* #f1f3f7 */
-  --muted-foreground: 218 16% 36%;  /* #4d586b */
-  --border: 217 19% 92%;            /* #e6e9ee */
-  --primary: 221 83% 53%;           /* #2563eb — blue-600 */
+  --background: 217 14% 97%;
+  --foreground: 221 45% 7%;
+  --muted: 220 20% 95%;
+  --muted-foreground: 218 16% 36%;
+  --border: 217 19% 92%;
+  --primary: 221 83% 53%;
   --primary-foreground: 0 0% 100%;
-  --surface: 0 0% 100%;             /* #ffffff */
-  --success: 142 72% 29%;           /* #16a34a */
-  --warning: 32 95% 44%;            /* #d97706 */
-  --danger: 0 72% 51%;              /* #dc2626 */
-}
-
-.dark {
-  --background: 221 45% 7%;         /* #0a0f1a */
-  --foreground: 216 33% 97%;        /* #f5f7fa */
-  --muted: 219 40% 12%;             /* #131c2c */
-  --muted-foreground: 220 18% 66%;  /* #97a2b7 */
-  --border: 218 35% 18%;            /* #1e2a3f */
-  --primary: 217 91% 60%;           /* #3b82f6 — blue-500 */
-  --primary-foreground: 0 0% 100%;
-  --surface: 219 40% 10%;           /* #0f1623 */
+  --surface: 0 0% 100%;
   --success: 142 72% 29%;
   --warning: 32 95% 44%;
   --danger: 0 72% 51%;
+
+  /* Design system aliases (consumed by marketing.css and other plain CSS) */
+  --bg:          hsl(217, 14%, 97%);
+  --bg-elevated: #ffffff;
+  --bg-subtle:   hsl(220, 20%, 95%);
+  --bg-card:     #ffffff;
+  --fg:          hsl(221, 45%, 7%);
+  --fg-muted:    hsl(218, 16%, 36%);
+  --fg-subtle:   #8a95a8;
+  --fg-inverse:  #ffffff;
+  --line:        hsl(217, 19%, 92%);
+  --line-strong: #d4d9e1;
+
+  /* Brand scale */
+  --brand-50:  #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --brand-800: #1e40af;
+  --brand-900: #1e3a8a;
+  --brand-950: #172554;
+  --accent-cyan:      #22d3ee;
+  --accent-cyan-deep: #0891b2;
+
+  /* Semantic backgrounds */
+  --success-bg:     #ecfdf5;
+  --success-border: #bbf7d0;
+  --warning-bg:     #fef7e6;
+  --warning-border: #fde68a;
+  --danger-bg:      #fef2f2;
+  --danger-border:  #fecaca;
+
+  /* Typography */
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* Radii */
+  --r-xs: 4px;  --r-sm: 6px;  --r-md: 8px;   --r-lg: 10px;
+  --r-xl: 14px; --r-2xl: 20px; --r-full: 9999px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 24px -6px rgba(15, 23, 42, 0.10), 0 4px 8px -4px rgba(15, 23, 42, 0.06);
+  --shadow-xl: 0 24px 48px -12px rgba(15, 23, 42, 0.18);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 120ms var(--ease-out);
+  --t-base: 180ms var(--ease-out);
+  --t-slow: 280ms var(--ease-out);
 }
 
-* {
-  box-sizing: border-box;
+.dark {
+  --background: 221 45% 7%;
+  --foreground: 216 33% 97%;
+  --muted: 219 40% 12%;
+  --muted-foreground: 220 18% 66%;
+  --border: 218 35% 18%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 0 0% 100%;
+  --surface: 219 40% 10%;
+  --success: 142 72% 29%;
+  --warning: 32 95% 44%;
+  --danger: 0 72% 51%;
+
+  --bg:          hsl(221, 45%, 7%);
+  --bg-elevated: hsl(219, 40%, 10%);
+  --bg-subtle:   hsl(219, 40%, 12%);
+  --bg-card:     hsl(219, 40%, 10%);
+  --fg:          hsl(216, 33%, 97%);
+  --fg-muted:    hsl(220, 18%, 66%);
+  --fg-subtle:   #5e6b80;
+  --line:        hsl(218, 35%, 18%);
+  --line-strong: #2a3a55;
+
+  --brand-600: #3b82f6;
+  --brand-700: #2563eb;
+
+  --success-bg:     rgba(22, 163, 74, 0.10);
+  --success-border: rgba(22, 163, 74, 0.30);
+  --warning-bg:     rgba(217, 119, 6, 0.10);
+  --warning-border: rgba(217, 119, 6, 0.30);
+  --danger-bg:      rgba(220, 38, 38, 0.10);
+  --danger-border:  rgba(220, 38, 38, 0.30);
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.30);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.40);
+  --shadow-md: 0 4px 8px rgba(0,0,0,0.40);
+  --shadow-lg: 0 12px 24px rgba(0,0,0,0.50);
 }
 
-html,
-body {
-  min-height: 100%;
-}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
 
 body {
   margin: 0;
@@ -49,10 +125,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button,
-input {
-  font: inherit;
-}
+button, input { font: inherit; }
 
 ::selection {
   background: hsl(var(--primary) / 0.2);
