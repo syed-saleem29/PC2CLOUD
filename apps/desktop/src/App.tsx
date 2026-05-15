@@ -131,6 +131,7 @@ export default function App() {
 
     folderPathRef.current = folderPath;
     ipc().invoke("socket:set-folder", folderPath);
+    connectSocket(deviceId);
 
     apiFetch(`${API_URL}/api/devices/${deviceId}/storage`, {
       method: "PATCH",
@@ -158,6 +159,7 @@ export default function App() {
     };
     const missingHandler = () => {
       if (storageSyncRef.current) clearInterval(storageSyncRef.current);
+      ipc().invoke("socket:disconnect");
       setScreen("folder-missing");
     };
     ipc().on("folder:changed", handler);
