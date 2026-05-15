@@ -1244,8 +1244,9 @@ export function Dashboard() {
                       </div>
 
                       <div>
-                        <span className={`chip${device.status === "online" ? " chip-success" : ""}`}>
-                          <span className="dot"></span>{device.status}
+                        <span className={`chip ${device.status === "online" ? "chip-success" : "chip-danger"}`}>
+                          <span className={`dot${device.status === "online" ? " dot-pulse" : ""}`}></span>
+                          {device.status}
                         </span>
                         <div className="caption" style={{ marginTop: 6 }}>{device.platform}</div>
                       </div>
@@ -1318,7 +1319,7 @@ export function Dashboard() {
                 <button key={device.deviceId} className={`tab${selectedDeviceId === device.deviceId ? " active" : ""}`} onClick={() => openDeviceStorage(device)} disabled={isLoading}>
                   <Computer size={13} aria-hidden="true" />
                   {device.deviceName}
-                  <span className="dot" style={{ background: device.status === "online" ? "var(--success)" : "var(--fg-subtle)", width: 6, height: 6 }}></span>
+                  <span className={`dot${device.status === "online" ? " dot-pulse" : ""}`} style={{ background: device.status === "online" ? "var(--success)" : "var(--danger)", color: device.status === "online" ? "var(--success)" : "var(--danger)", width: 6, height: 6 }}></span>
                 </button>
               ))}
               <button className="tab" onClick={() => setActiveSection("devices")}>
@@ -1630,8 +1631,9 @@ export function Dashboard() {
                       <div className="settings-row-desc">{device.platform} · last seen {formatDate(device.lastSeen)}</div>
                     </div>
                   </div>
-                  <span className={`chip${device.status === "online" ? " chip-success" : ""}`}>
-                    <span className="dot"></span>{device.status}
+                  <span className={`chip ${device.status === "online" ? "chip-success" : "chip-danger"}`}>
+                    <span className={`dot${device.status === "online" ? " dot-pulse" : ""}`}></span>
+                    {device.status}
                   </span>
                 </div>
               ))}
