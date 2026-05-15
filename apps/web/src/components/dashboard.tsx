@@ -20,6 +20,7 @@ import {
   ImageIcon,
   Loader2,
   LogOut,
+  Moon,
   Pencil,
   Plus,
   RefreshCcw,
@@ -27,6 +28,7 @@ import {
   Settings2,
   ShieldCheck,
   Sparkles,
+  Sun,
   Trash2,
   Upload,
   Wifi,
@@ -161,6 +163,7 @@ export function Dashboard() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const socketRef = useRef<Socket | null>(null);
   const selectedDeviceIdRef = useRef<string | null>(null);
   const selectedPathRef = useRef<string>("/");
@@ -225,6 +228,23 @@ export function Dashboard() {
       return true;
     }
     return false;
+  }
+
+  // Theme — init from localStorage, sync to <html>
+  useEffect(() => {
+    const saved = (typeof window !== "undefined" ? localStorage.getItem("pc2cloud_theme") : null) as "light" | "dark" | null;
+    const preferred = saved ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    setTheme(preferred);
+    document.documentElement.classList.toggle("dark", preferred === "dark");
+  }, []);
+
+  function toggleTheme() {
+    setTheme((prev) => {
+      const next = prev === "light" ? "dark" : "light";
+      document.documentElement.classList.toggle("dark", next === "dark");
+      localStorage.setItem("pc2cloud_theme", next);
+      return next;
+    });
   }
 
   // Initial auth check
@@ -902,6 +922,10 @@ export function Dashboard() {
   if (!isAuthenticated) {
     return (
       <div className="auth">
+        <button onClick={toggleTheme} title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+          style={{ position: "fixed", top: 16, right: 16, width: 36, height: 36, borderRadius: "var(--r-md)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-elevated)", border: "1px solid var(--line)", cursor: "pointer", color: "var(--fg-muted)", zIndex: 10 }}>
+          {theme === "dark" ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
+        </button>
         <div className="auth-card anim-fade-in">
           <div className="auth-header">
             <div className="auth-logo-mark">
@@ -1111,14 +1135,22 @@ export function Dashboard() {
             <button className="btn btn-primary btn-sm" style={{ width: "100%" }}>Start trial</button>
           </div>
 
-          <button className="sidebar-user" onClick={handleLogout} disabled={isLoading} title="Sign out">
-            <span className="avatar">{(user?.userName || user?.userEmail || "?").slice(0, 1).toUpperCase()}</span>
-            <span className="sidebar-user-info">
-              <span className="sidebar-user-name">{user?.userName || "User"}</span>
-              <span className="sidebar-user-mail">{user?.userEmail}</span>
-            </span>
-            <LogOut size={14} color="var(--fg-subtle)" aria-hidden="true" />
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button className="sidebar-user" style={{ flex: 1 }} onClick={handleLogout} disabled={isLoading} title="Sign out">
+              <span className="avatar">{(user?.userName || user?.userEmail || "?").slice(0, 1).toUpperCase()}</span>
+              <span className="sidebar-user-info">
+                <span className="sidebar-user-name">{user?.userName || "User"}</span>
+                <span className="sidebar-user-mail">{user?.userEmail}</span>
+              </span>
+              <LogOut size={14} color="var(--fg-subtle)" aria-hidden="true" />
+            </button>
+            <button onClick={toggleTheme} title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+              style={{ width: 32, height: 32, borderRadius: "var(--r-sm)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "none", border: "1px solid var(--line)", cursor: "pointer", color: "var(--fg-muted)", transition: "all var(--t-fast)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-subtle)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--fg)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; (e.currentTarget as HTMLButtonElement).style.color = "var(--fg-muted)"; }}>
+              {theme === "dark" ? <Sun size={14} aria-hidden="true" /> : <Moon size={14} aria-hidden="true" />}
+            </button>
+          </div>
         </div>
       </aside>
 
