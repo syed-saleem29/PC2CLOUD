@@ -1,0 +1,7 @@
+->want upload and progress bar , progress bar for deletion
+->Slow Upload
+->Ui Change 
+->Website for showcase and about our work etc 
+->System adaptive and manual theme change
+->after selecting the pc2cloud sub folder it should confirm the folder 
+->User can change the sub folder location (migrate I don't know is thid good or bad)

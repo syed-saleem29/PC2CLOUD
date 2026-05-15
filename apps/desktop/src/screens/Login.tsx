@@ -179,7 +179,7 @@ export default function Login({ onDone, hasConfig }: { onDone: () => void; hasCo
       {/* Logo */}
       <div className="relative mb-1">
         <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl" />
-        <div className="relative flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-cyan-400 shadow-lg shadow-primary/30">
+        <div className="relative flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-800 shadow-lg shadow-primary/30">
           <Cloud size={26} className="text-white" aria-hidden="true" />
         </div>
       </div>

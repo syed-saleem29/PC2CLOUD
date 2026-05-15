@@ -1,17 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: 210 20% 98%;
-  --foreground: 222 35% 12%;
-  --muted: 210 22% 93%;
-  --muted-foreground: 216 12% 42%;
-  --border: 214 18% 84%;
-  --primary: 188 89% 30%;
+  --background: 217 14% 97%;        /* #f7f8fa */
+  --foreground: 221 45% 7%;         /* #0a0f1a */
+  --muted: 220 20% 95%;             /* #f1f3f7 */
+  --muted-foreground: 218 16% 36%;  /* #4d586b */
+  --border: 217 19% 92%;            /* #e6e9ee */
+  --primary: 221 83% 53%;           /* #2563eb — blue-600 */
   --primary-foreground: 0 0% 100%;
-  --success: 146 55% 36%;
-  --warning: 39 92% 46%;
+  --surface: 0 0% 100%;             /* #ffffff */
+  --success: 142 72% 29%;           /* #16a34a */
+  --warning: 32 95% 44%;            /* #d97706 */
+  --danger: 0 72% 51%;              /* #dc2626 */
+}
+
+.dark {
+  --background: 221 45% 7%;         /* #0a0f1a */
+  --foreground: 216 33% 97%;        /* #f5f7fa */
+  --muted: 219 40% 12%;             /* #131c2c */
+  --muted-foreground: 220 18% 66%;  /* #97a2b7 */
+  --border: 218 35% 18%;            /* #1e2a3f */
+  --primary: 217 91% 60%;           /* #3b82f6 — blue-500 */
+  --primary-foreground: 0 0% 100%;
+  --surface: 219 40% 10%;           /* #0f1623 */
+  --success: 142 72% 29%;
+  --warning: 32 95% 44%;
+  --danger: 0 72% 51%;
 }
 
 * {
@@ -27,10 +45,16 @@ body {
   margin: 0;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
 input {
   font: inherit;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.2);
+  color: hsl(var(--foreground));
 }

@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PC2CLOUD — Your hardware. Your cloud. Zero monthly fees.</title>
+  <link rel="icon" href="assets/favicon.ico">
+  <link rel="stylesheet" href="ui.css">
+  <link rel="stylesheet" href="marketing.css">
+  <script src="icons.js" defer></script>
+</head>
+<body data-screen-label="Marketing — Landing">
+
+<!-- ───────────── NAV ───────────── -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a href="#" class="logo">
+      <span class="logo-mark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.78A6 6 0 0 0 6.6 13.5"/>
+          <path d="M3 16.5a3.5 3.5 0 0 0 3.5 3.5h11"/>
+        </svg>
+      </span>
+      <span class="logo-text">PC2CLOUD</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-actions">
+      <button id="themeBtn" class="btn btn-ghost btn-icon btn-sm" title="Theme: System (click for Light)" aria-label="Toggle theme">
+        <span data-icon="monitor" data-size="15"></span>
+      </button>
+      <a href="app.html" class="btn btn-ghost btn-sm">Sign in</a>
+      <a href="#download" class="btn btn-primary btn-sm">
+        <span data-icon="download" data-size="14"></span>
+        Download
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ───────────── HERO ───────────── -->
+<section class="hero">
+  <div class="hero-bg">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero-blob hero-blob-3"></div>
+    <div class="hero-grid"></div>
+  </div>
+  <div class="container hero-inner">
+    <div class="chip chip-brand hero-eyebrow">
+      <span class="dot dot-pulse"></span>
+      <span>v0.1.0 · Windows desktop client now available</span>
+    </div>
+    <h1 class="display hero-title">
+      Your hardware.<br>
+      <span class="gradient-text">Your cloud.</span>
+    </h1>
+    <p class="hero-sub">
+      Turn any PC into a private cloud server. Access your files from anywhere — without paying for someone else's storage.
+    </p>
+    <div class="hero-cta">
+      <a href="#download" class="btn btn-primary btn-lg">
+        <span data-icon="download" data-size="16"></span>
+        Download for Windows
+      </a>
+      <a href="app.html" class="btn btn-secondary btn-lg">
+        Open dashboard
+        <span data-icon="arrowright" data-size="14"></span>
+      </a>
+    </div>
+    <div class="hero-meta">
+      <div><span data-icon="checkcircle" data-size="14"></span> Free, forever</div>
+      <div><span data-icon="lock" data-size="14"></span> End-to-end encrypted</div>
+      <div><span data-icon="zap" data-size="14"></span> No setup required</div>
+    </div>
+  </div>
+
+  <!-- Visual mockup -->
+  <div class="container hero-mock-wrap">
+    <!-- Floating accent cards -->
+    <div class="float-card float-card-1" aria-hidden="true">
+      <div class="float-card-icon float-card-icon-success">
+        <span data-icon="check" data-size="13"></span>
+      </div>
+      <div>
+        <div class="float-card-title">Synced</div>
+        <div class="float-card-sub">2.4 TB · 3 devices</div>
+      </div>
+    </div>
+
+    <div class="float-card float-card-2" aria-hidden="true">
+      <div class="float-card-icon float-card-icon-cyan">
+        <span data-icon="lock" data-size="13"></span>
+      </div>
+      <div>
+        <div class="float-card-title">End-to-end encrypted</div>
+        <div class="float-card-sub">AES-256 · WebRTC</div>
+      </div>
+    </div>
+
+    <div class="float-card float-card-3" aria-hidden="true">
+      <div class="float-card-mini">
+        <span data-icon="zap" data-size="12"></span>
+      </div>
+      <div>
+        <div class="float-card-title-sm">P2P direct</div>
+        <div class="float-card-bar">
+          <div class="float-card-bar-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-mock card-elevated">
+      <div class="hero-mock-chrome">
+        <div class="dots">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="hero-mock-tab">
+          <span data-icon="cloud" data-size="11"></span>
+          pc2cloud.io/devices
+        </div>
+        <div></div>
+      </div>
+      <div class="hero-mock-body">
+        <aside class="mock-sidebar">
+          <div class="logo" style="padding: 4px 8px 12px;">
+            <span class="logo-mark" style="width:22px; height:22px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.78A6 6 0 0 0 6.6 13.5"/><path d="M3 16.5a3.5 3.5 0 0 0 3.5 3.5h11"/>
+              </svg>
+            </span>
+            <span class="logo-text" style="font-size:12px;">PC2CLOUD</span>
+          </div>
+          <button class="mock-nav-item active"><span data-icon="computer" data-size="14"></span>Devices</button>
+          <button class="mock-nav-item"><span data-icon="harddrive" data-size="14"></span>Storage</button>
+          <button class="mock-nav-item"><span data-icon="activity" data-size="14"></span>Activity</button>
+          <button class="mock-nav-item"><span data-icon="shieldcheck" data-size="14"></span>Security</button>
+          <button class="mock-nav-item"><span data-icon="settings" data-size="14"></span>Settings</button>
+        </aside>
+        <main class="mock-main">
+          <div class="mock-header">
+            <div>
+              <h3 class="h3" style="margin:0;">Devices</h3>
+              <p class="caption" style="margin:2px 0 0;">3 connected · 2 online</p>
+            </div>
+            <button class="btn btn-secondary btn-sm">
+              <span data-icon="refresh" data-size="13"></span> Refresh
+            </button>
+          </div>
+
+          <div class="mock-stats">
+            <div class="mock-stat">
+              <span class="caption">Connected PCs</span>
+              <span class="mock-stat-val">3</span>
+            </div>
+            <div class="mock-stat">
+              <span class="caption">Online now</span>
+              <span class="mock-stat-val">
+                <span class="dot" style="background:var(--success); display:inline-block; margin-right:4px;"></span>2
+              </span>
+            </div>
+            <div class="mock-stat">
+              <span class="caption">Total storage</span>
+              <span class="mock-stat-val">2.41 <small style="font-weight:500; color:var(--fg-muted); font-size:14px;">TB</small></span>
+            </div>
+          </div>
+
+          <div class="mock-device">
+            <div class="mock-device-icon">
+              <span data-icon="computer" data-size="18"></span>
+            </div>
+            <div class="mock-device-info">
+              <div class="mock-device-name">Studio Desktop</div>
+              <div class="caption">PC2CLOUD · Windows · D:\Storage</div>
+            </div>
+            <div class="mock-device-meta">
+              <span class="chip chip-success"><span class="dot"></span>online</span>
+              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                <span class="caption mono"><strong style="color:var(--fg)">184 GB</strong> / 500 GB</span>
+                <div class="mock-bar"><div style="width: 37%;"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="mock-device">
+            <div class="mock-device-icon">
+              <span data-icon="computer" data-size="18"></span>
+            </div>
+            <div class="mock-device-info">
+              <div class="mock-device-name">Old Office Tower</div>
+              <div class="caption">PC2CLOUD · Windows · C:\Users\Syed</div>
+            </div>
+            <div class="mock-device-meta">
+              <span class="chip chip-success"><span class="dot"></span>online</span>
+              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                <span class="caption mono"><strong style="color:var(--fg)">42 GB</strong> / 500 GB</span>
+                <div class="mock-bar"><div style="width: 8%;"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="mock-device mock-device-uploading">
+            <div class="mock-device-icon" style="color:var(--brand-600); background: rgba(37,99,235,0.10);">
+              <span data-icon="upload" data-size="18"></span>
+            </div>
+            <div class="mock-device-info">
+              <div class="mock-device-name mono" style="font-size:13px;">shoot-raw.zip</div>
+              <div class="caption mono">Uploading to Studio Desktop · 14.3 GB</div>
+            </div>
+            <div class="mock-device-meta">
+              <span class="caption mono"><strong style="color:var(--brand-600)">64%</strong></span>
+              <div class="mock-bar mock-bar-brand"><div style="width: 64%;" class="mock-bar-anim"></div></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="hero-mock-shadow"></div>
+  </div>
+</section>
+
+<!-- ───────────── LOGOS / SOCIAL PROOF (subtle) ───────────── -->
+<section class="strip">
+  <div class="container">
+    <p class="strip-label">Built on open standards</p>
+    <div class="strip-row">
+      <span class="strip-item">WebRTC</span>
+      <span class="strip-divider"></span>
+      <span class="strip-item">Socket.IO</span>
+      <span class="strip-divider"></span>
+      <span class="strip-item">TLS&nbsp;1.3</span>
+      <span class="strip-divider"></span>
+      <span class="strip-item">Electron</span>
+      <span class="strip-divider"></span>
+      <span class="strip-item">Node.js</span>
+      <span class="strip-divider"></span>
+      <span class="strip-item">MongoDB</span>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── FEATURES ───────────── -->
+<section id="features" class="section">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">Why PC2CLOUD</span>
+      <h2 class="h1" style="font-size:40px; margin: 16px 0 0; max-width: 720px;">
+        Cloud storage shouldn't&nbsp;cost you every&nbsp;month.
+      </h2>
+      <p class="body" style="margin: 16px 0 0; max-width: 640px; color: var(--fg-muted); font-size:17px;">
+        You already own the hardware. We provide the software that turns it into a private cloud — accessible from anywhere, encrypted end-to-end, and yours to keep.
+      </p>
+    </div>
+
+    <div class="features-grid">
+      <article class="feature-card">
+        <div class="feature-icon"><span data-icon="harddrive" data-size="20"></span></div>
+        <h3 class="h4">Unlimited, free storage</h3>
+        <p class="body-sm muted">Add another drive, plug it in, watch your capacity grow. There are no caps, no upgrade prompts, no monthly fees.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-icon"><span data-icon="lock" data-size="20"></span></div>
+        <h3 class="h4">Your data, end-to-end</h3>
+        <p class="body-sm muted">Files transfer over encrypted WebRTC peer-to-peer connections. We never store them on our servers — only signaling metadata.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-icon"><span data-icon="zap" data-size="20"></span></div>
+        <h3 class="h4">Direct P2P transfers</h3>
+        <p class="body-sm muted">No bandwidth bottlenecks. Your devices connect directly when possible, with relay fallback for stubborn networks.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-icon"><span data-icon="layers" data-size="20"></span></div>
+        <h3 class="h4">Multi-device sync</h3>
+        <p class="body-sm muted">Link as many PCs as you like. Each becomes a node — browse, search, upload, and download from any of them remotely.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-icon"><span data-icon="globe" data-size="20"></span></div>
+        <h3 class="h4">Access from anywhere</h3>
+        <p class="body-sm muted">A simple web dashboard works on any device. Mobile-friendly. No client required for read access.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-icon"><span data-icon="sparkles" data-size="20"></span></div>
+        <h3 class="h4">Breathe life into old PCs</h3>
+        <p class="body-sm muted">That tower in the garage? It's a 4 TB cloud now. Stop buying storage and start using what you already own.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── HOW IT WORKS ───────────── -->
+<section id="how" class="section section-alt">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">How it works</span>
+      <h2 class="h2" style="margin: 16px 0 0; max-width: 720px;">Three steps to your own cloud.</h2>
+    </div>
+
+    <div class="steps">
+      <article class="step">
+        <div class="step-number">01</div>
+        <h3 class="h3">Install on your PC</h3>
+        <p class="body muted">Download the Windows client, sign in, and pick a folder. We handle the rest — file watching, sync, registration.</p>
+        <div class="step-visual step-visual-1">
+          <div class="step-mini-window">
+            <div class="step-mini-title-bar">
+              <span class="logo-mark" style="width:14px; height:14px; border-radius:4px;"></span>
+              <span class="mono" style="font-size:9px; letter-spacing:0.12em; color:var(--fg-muted);">PC2CLOUD</span>
+            </div>
+            <div class="step-mini-body">
+              <div class="step-mini-folder">
+                <span data-icon="folder" data-size="22"></span>
+              </div>
+              <div class="caption" style="text-align:center; margin-top:8px;">Choose folder location</div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="step-number">02</div>
+        <h3 class="h3">Link your devices</h3>
+        <p class="body muted">Sign in on any number of PCs. Each one shows up in your dashboard with its own storage pool.</p>
+        <div class="step-visual">
+          <div class="device-bubble" style="left:20%; top:40%;"><span data-icon="computer" data-size="16"></span></div>
+          <div class="device-bubble" style="left:50%; top:20%;"><span data-icon="computer" data-size="16"></span></div>
+          <div class="device-bubble" style="left:75%; top:55%;"><span data-icon="computer" data-size="16"></span></div>
+          <svg class="step-svg" viewBox="0 0 300 120" preserveAspectRatio="none">
+            <path d="M 60 60 Q 150 0 150 30" fill="none" stroke="var(--brand-600)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/>
+            <path d="M 150 30 Q 230 30 220 80" fill="none" stroke="var(--brand-600)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/>
+            <path d="M 60 60 Q 140 110 220 80" fill="none" stroke="var(--brand-600)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/>
+          </svg>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="step-number">03</div>
+        <h3 class="h3">Access from anywhere</h3>
+        <p class="body muted">Open the web dashboard from your phone, laptop, or tablet. Browse files, preview, download — encrypted end-to-end.</p>
+        <div class="step-visual step-visual-3">
+          <div class="step-file">
+            <div class="step-file-icon"><span data-icon="filetext" data-size="14"></span></div>
+            <div class="step-file-info">
+              <div style="font-weight:500; font-size:12px;">tax-return-2024.pdf</div>
+              <div class="caption mono" style="font-size:10px;">824 KB</div>
+            </div>
+            <div class="step-file-actions">
+              <span data-icon="eye" data-size="12"></span>
+              <span data-icon="download" data-size="12"></span>
+            </div>
+          </div>
+          <div class="step-file">
+            <div class="step-file-icon"><span data-icon="fileimage" data-size="14"></span></div>
+            <div class="step-file-info">
+              <div style="font-weight:500; font-size:12px;">IMG_0421.jpg</div>
+              <div class="caption mono" style="font-size:10px;">2.3 MB</div>
+            </div>
+            <div class="step-file-actions">
+              <span data-icon="eye" data-size="12"></span>
+              <span data-icon="download" data-size="12"></span>
+            </div>
+          </div>
+          <div class="step-file">
+            <div class="step-file-icon"><span data-icon="file" data-size="14"></span></div>
+            <div class="step-file-info">
+              <div style="font-weight:500; font-size:12px;">demo.mp4</div>
+              <div class="caption mono" style="font-size:10px;">138 MB</div>
+            </div>
+            <div class="step-file-actions">
+              <span data-icon="eye" data-size="12"></span>
+              <span data-icon="download" data-size="12"></span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── ARCHITECTURE BAND ───────────── -->
+<section class="section">
+  <div class="container">
+    <div class="arch">
+      <div class="arch-text">
+        <span class="eyebrow">Architecture</span>
+        <h2 class="h2" style="margin: 12px 0 16px;">Files stay on your PC.<br>Always.</h2>
+        <p class="body muted" style="font-size:16px; max-width:480px;">
+          Our servers handle authentication, device registration, and signaling — nothing else. When your devices talk to each other, they connect directly over encrypted WebRTC. Even we can't see your data.
+        </p>
+        <div style="display:flex; flex-direction:column; gap:14px; margin-top:32px;">
+          <div class="arch-bullet">
+            <span class="arch-bullet-icon"><span data-icon="check" data-size="11"></span></span>
+            <div><strong>Signaling only.</strong> <span class="muted">Server brokers connections, then steps aside.</span></div>
+          </div>
+          <div class="arch-bullet">
+            <span class="arch-bullet-icon"><span data-icon="check" data-size="11"></span></span>
+            <div><strong>Direct P2P transfers.</strong> <span class="muted">WebRTC data channels, encrypted.</span></div>
+          </div>
+          <div class="arch-bullet">
+            <span class="arch-bullet-icon"><span data-icon="check" data-size="11"></span></span>
+            <div><strong>Relay fallback.</strong> <span class="muted">Symmetric NATs use our TURN servers — still encrypted.</span></div>
+          </div>
+          <div class="arch-bullet">
+            <span class="arch-bullet-icon"><span data-icon="check" data-size="11"></span></span>
+            <div><strong>Zero-knowledge metadata.</strong> <span class="muted">We store file names, not file contents.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-diagram">
+        <div class="arch-node arch-node-device" style="grid-area: a;">
+          <span data-icon="computer" data-size="20"></span>
+          <span class="caption">Your PC</span>
+        </div>
+        <div class="arch-line arch-line-a"></div>
+        <div class="arch-node arch-node-server" style="grid-area: s;">
+          <span data-icon="cloud" data-size="22"></span>
+          <span class="caption">Signaling</span>
+          <span class="caption mono" style="font-size:10px;">pc2cloud.io</span>
+        </div>
+        <div class="arch-line arch-line-b"></div>
+        <div class="arch-node arch-node-device" style="grid-area: c;">
+          <span data-icon="monitor" data-size="20"></span>
+          <span class="caption">Your phone</span>
+        </div>
+        <div class="arch-p2p">
+          <span class="arch-p2p-pill">
+            <span data-icon="lock" data-size="11"></span>
+            P2P · encrypted
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── PRICING ───────────── -->
+<section id="pricing" class="section section-alt">
+  <div class="container">
+    <div class="section-header section-header-center">
+      <span class="eyebrow">Pricing</span>
+      <h2 class="h2" style="margin: 16px 0 0;">Free forever. Pro when you need more.</h2>
+      <p class="body muted" style="margin: 16px 0 0; max-width: 560px;">
+        The core product is free and always will be. Pro adds multi-device, relay acceleration, and team sharing — pay only when you outgrow the basics.
+      </p>
+    </div>
+
+    <div class="pricing-grid">
+      <article class="price-card">
+        <div class="price-card-head">
+          <h3 class="h3" style="margin:0;">Free</h3>
+          <p class="muted body-sm" style="margin:4px 0 0;">For individuals.</p>
+        </div>
+        <div class="price-card-amount">
+          <span class="price-amount">$0</span>
+          <span class="price-period muted">/ forever</span>
+        </div>
+        <ul class="price-list">
+          <li><span data-icon="check" data-size="14" data-color="var(--success)"></span> 1 linked device</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--success)"></span> Unlimited self-hosted storage</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--success)"></span> P2P encrypted transfers</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--success)"></span> Web dashboard access</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--success)"></span> Community support</li>
+        </ul>
+        <a href="#download" class="btn btn-secondary btn-lg" style="width:100%;">Download for free</a>
+      </article>
+
+      <article class="price-card price-card-featured">
+        <span class="price-badge">Most popular</span>
+        <div class="price-card-head">
+          <h3 class="h3" style="margin:0;">Pro</h3>
+          <p class="muted body-sm" style="margin:4px 0 0;">For power users.</p>
+        </div>
+        <div class="price-card-amount">
+          <span class="price-amount">$4</span>
+          <span class="price-period muted">/ month</span>
+        </div>
+        <ul class="price-list">
+          <li><span data-icon="check" data-size="14" data-color="var(--brand-600)"></span> Unlimited devices</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--brand-600)"></span> Relay acceleration</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--brand-600)"></span> Priority sync</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--brand-600)"></span> Cloud backup snapshots</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--brand-600)"></span> Email support</li>
+        </ul>
+        <a href="#" class="btn btn-primary btn-lg" style="width:100%;">Start Pro trial</a>
+      </article>
+
+      <article class="price-card">
+        <div class="price-card-head">
+          <h3 class="h3" style="margin:0;">Team</h3>
+          <p class="muted body-sm" style="margin:4px 0 0;">For small teams &amp; studios.</p>
+        </div>
+        <div class="price-card-amount">
+          <span class="price-amount">$12</span>
+          <span class="price-period muted">/ user / mo</span>
+        </div>
+        <ul class="price-list">
+          <li><span data-icon="check" data-size="14" data-color="var(--success)"></span> Everything in Pro</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--success)"></span> Shared folders</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--success)"></span> Per-member permissions</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--success)"></span> Activity audit log</li>
+          <li><span data-icon="check" data-size="14" data-color="var(--success)"></span> SLA support</li>
+        </ul>
+        <a href="#" class="btn btn-secondary btn-lg" style="width:100%;">Contact sales</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── FAQ ───────────── -->
+<section id="faq" class="section">
+  <div class="container container-narrow">
+    <div class="section-header">
+      <span class="eyebrow">FAQ</span>
+      <h2 class="h2" style="margin: 16px 0 0;">Common questions.</h2>
+    </div>
+    <div class="faq">
+      <details class="faq-item" open>
+        <summary>Does my PC need to stay on?</summary>
+        <p>Yes — your PC is the storage server. When it's off, your files aren't reachable. Most users leave a dedicated PC running 24/7, or run PC2CLOUD on a machine they use daily (it idles at near-zero CPU when nothing's transferring).</p>
+      </details>
+      <details class="faq-item">
+        <summary>What happens if my hard drive fails?</summary>
+        <p>PC2CLOUD doesn't replicate files automatically (yet). Treat it like a single hard drive: back up anything irreplaceable separately. Pro plans include cloud backup snapshots as a safety net.</p>
+      </details>
+      <details class="faq-item">
+        <summary>How is this different from a Synology NAS?</summary>
+        <p>A NAS is dedicated hardware you buy. PC2CLOUD uses a PC you already have. Same idea — your storage, your control — just no new hardware purchase.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Is the source code available?</summary>
+        <p>Yes. The full monorepo (Next.js dashboard, Electron client, Express signaling server) is open source on <a href="https://github.com/syed-saleem29/PC2CLOUD" style="color:var(--brand-600);">GitHub</a>.</p>
+      </details>
+      <details class="faq-item">
+        <summary>macOS and Linux support?</summary>
+        <p>Coming. Windows ships first because it's the most common "spare PC" platform. macOS is next.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── CTA ───────────── -->
+<section id="download" class="cta">
+  <div class="container">
+    <div class="cta-card">
+      <div class="cta-glow"></div>
+      <span class="eyebrow" style="color: rgba(255,255,255,0.7);">Ready to start?</span>
+      <h2 class="h1" style="font-size:44px; color:white; margin: 16px 0 0;">Your cloud, on your terms.</h2>
+      <p style="font-size:17px; margin: 16px 0 0; color: rgba(255,255,255,0.78); max-width: 520px;">
+        Free Windows client. No credit card. Five-minute setup.
+      </p>
+      <div style="display:flex; gap:12px; justify-content:center; margin-top:32px; flex-wrap:wrap;">
+        <a href="https://github.com/syed-saleem29/PC2CLOUD/releases/download/v0.1.0/PC2CLOUD.Setup.0.1.0.exe" class="btn btn-lg cta-btn-primary">
+          <span data-icon="download" data-size="16"></span>
+          Download for Windows
+        </a>
+        <a href="app.html" class="btn btn-lg cta-btn-ghost">
+          Open dashboard
+          <span data-icon="arrowright" data-size="14"></span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── FOOTER ───────────── -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a href="#" class="logo">
+          <span class="logo-mark">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.78A6 6 0 0 0 6.6 13.5"/>
+              <path d="M3 16.5a3.5 3.5 0 0 0 3.5 3.5h11"/>
+            </svg>
+          </span>
+          <span class="logo-text">PC2CLOUD</span>
+        </a>
+        <p class="caption" style="max-width:240px; margin-top: 12px;">Private cloud storage powered by hardware you already own.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#download">Download</a>
+      </div>
+      <div class="footer-col">
+        <h4>Developers</h4>
+        <a href="https://github.com/syed-saleem29/PC2CLOUD">GitHub</a>
+        <a href="#">Documentation</a>
+        <a href="#">API reference</a>
+        <a href="#">Status</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Blog</a>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p class="caption">© 2026 PC2CLOUD. Built in the open.</p>
+      <div class="footer-social">
+        <a href="https://github.com/syed-saleem29/PC2CLOUD"><span data-icon="github" data-size="16"></span></a>
+        <a href="#"><span data-icon="twitter" data-size="16"></span></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ─── System-adaptive theme — one cycling button ───────────
+  // System → Light → Dark → System. Override persisted to localStorage.
+  (function () {
+    function readTheme() {
+      try { return localStorage.getItem("pc2cloud_theme") || "system"; }
+      catch { return "system"; }
+    }
+    function applyTheme(theme) {
+      const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const isDark = theme === "dark" || (theme === "system" && sysDark);
+      document.documentElement.classList.toggle("dark", isDark);
+    }
+    let theme = readTheme();
+    applyTheme(theme);
+
+    // React to OS theme changes when in System mode
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    mql.addEventListener("change", () => { if (readTheme() === "system") applyTheme("system"); });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      // ─── Inflate icon placeholders ───
+      document.querySelectorAll("[data-icon]").forEach((el) => {
+        const name = el.dataset.icon;
+        const size = +(el.dataset.size || 16);
+        const color = el.dataset.color;
+        el.outerHTML = icon(name, { size, color });
+      });
+
+      // ─── Wire theme button ───
+      function refreshThemeBtn() {
+        const btn = document.getElementById("themeBtn");
+        if (!btn) return;
+        const map = {
+          system: { icon: "monitor", title: "Theme: System (click for Light)" },
+          light:  { icon: "sun",     title: "Theme: Light (click for Dark)" },
+          dark:   { icon: "moon",    title: "Theme: Dark (click for System)" },
+        };
+        const m = map[theme];
+        btn.innerHTML = icon(m.icon, { size: 15 });
+        btn.title = m.title;
+      }
+      refreshThemeBtn();
+
+      document.getElementById("themeBtn")?.addEventListener("click", () => {
+        theme = theme === "system" ? "light" : theme === "light" ? "dark" : "system";
+        try { localStorage.setItem("pc2cloud_theme", theme); } catch {}
+        applyTheme(theme);
+        refreshThemeBtn();
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
