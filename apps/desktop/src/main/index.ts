@@ -119,6 +119,13 @@ app.whenReady().then(() => {
   });
 });
 
+app.on("before-quit", () => {
+  if (deviceSocket) {
+    deviceSocket.disconnect();
+    deviceSocket = null;
+  }
+});
+
 app.on("window-all-closed", () => {
   log("window-all-closed fired");
   if (process.platform !== "darwin") app.quit();
