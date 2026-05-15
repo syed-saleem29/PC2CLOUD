@@ -124,6 +124,18 @@ app.on("before-quit", () => {
     deviceSocket.disconnect();
     deviceSocket = null;
   }
+  // Clear the auth token so a reinstall always shows the login screen.
+  // The deviceId and folderPath are kept so the user just re-enters their password
+  // rather than going through full setup again.
+  try {
+    const configPath = join(app.getPath("userData"), "pc2cloud.json");
+    const raw = fs.readFileSync(configPath, "utf-8");
+    const config = JSON.parse(raw);
+    if (config.authToken) {
+      delete config.authToken;
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
+    }
+  } catch { /* config missing or unreadable — ignore */ }
 });
 
 app.on("window-all-closed", () => {

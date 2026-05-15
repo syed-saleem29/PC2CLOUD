@@ -13,6 +13,10 @@ const realtime = require("./src/realtime");
 const port = process.env.PORT || 7000;
 const server = http.createServer(app);
 const io = new Server(server, {
+  // Detect stale connections faster: default pingInterval=25s + pingTimeout=20s = ~45s.
+  // With these values a force-killed client is detected in ~18s instead.
+  pingInterval: 10000,
+  pingTimeout: 8000,
   cors: {
     // Accept any origin — connections are secured by JWT middleware in socket.js.
     // The Electron desktop app connects from a file:// context where Chromium sends

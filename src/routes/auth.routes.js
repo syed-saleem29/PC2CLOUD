@@ -1,15 +1,15 @@
-const express = require('express')
-const authRouter = express.Router()
-const authController = require('../controllers/auth.controller')
-const authMiddleware = require('../middlewares/auth.middleware')
+const express = require("express");
+const authRouter = express.Router();
+const authController = require("../controllers/auth.controller");
+const authMiddleware = require("../middlewares/auth.middleware");
+const asyncHandler = require("../utils/asyncHandler");
 
-authRouter.post("/register", authController.registerController)
-authRouter.post("/login", authController.loginController)
-authRouter.post("/logout", authController.logoutController)
-authRouter.get("/me", authMiddleware, authController.meController)
+authRouter.post("/register", asyncHandler(authController.registerController));
+authRouter.post("/login", asyncHandler(authController.loginController));
+authRouter.post("/logout", asyncHandler(authController.logoutController));
+authRouter.get("/me", authMiddleware, asyncHandler(authController.meController));
+authRouter.post("/send-otp", asyncHandler(authController.sendOtpController));
+authRouter.post("/verify-email", asyncHandler(authController.verifyEmailController));
+authRouter.post("/reset-password", asyncHandler(authController.resetPasswordController));
 
-authRouter.post("/send-otp", authController.sendOtpController)
-authRouter.post("/verify-email", authController.verifyEmailController)
-authRouter.post("/reset-password", authController.resetPasswordController)
-
-module.exports = authRouter
+module.exports = authRouter;
