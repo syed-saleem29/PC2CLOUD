@@ -1135,20 +1135,19 @@ export function Dashboard() {
             <button className="btn btn-primary btn-sm" style={{ width: "100%" }}>Start trial</button>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button className="sidebar-user" style={{ flex: 1 }} onClick={handleLogout} disabled={isLoading} title="Sign out">
-              <span className="avatar">{(user?.userName || user?.userEmail || "?").slice(0, 1).toUpperCase()}</span>
-              <span className="sidebar-user-info">
-                <span className="sidebar-user-name">{user?.userName || "User"}</span>
-                <span className="sidebar-user-mail">{user?.userEmail}</span>
-              </span>
-              <LogOut size={14} color="var(--fg-subtle)" aria-hidden="true" />
-            </button>
-            <button onClick={toggleTheme} title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-              style={{ width: 32, height: 32, borderRadius: "var(--r-sm)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "none", border: "1px solid var(--line)", cursor: "pointer", color: "var(--fg-muted)", transition: "all var(--t-fast)" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-subtle)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--fg)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; (e.currentTarget as HTMLButtonElement).style.color = "var(--fg-muted)"; }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", borderRadius: "var(--r-sm)" }}>
+            <span className="avatar" style={{ flexShrink: 0 }}>{(user?.userName || user?.userEmail || "?").slice(0, 1).toUpperCase()}</span>
+            <span className="sidebar-user-info" style={{ flex: 1, minWidth: 0 }}>
+              <span className="sidebar-user-name">{user?.userName || "User"}</span>
+              <span className="sidebar-user-mail">{user?.userEmail}</span>
+            </span>
+            <button onClick={toggleTheme} title={theme === "dark" ? "Light mode" : "Dark mode"}
+              style={{ width: 28, height: 28, flexShrink: 0, borderRadius: "var(--r-sm)", display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", color: "var(--fg-subtle)" }}>
               {theme === "dark" ? <Sun size={14} aria-hidden="true" /> : <Moon size={14} aria-hidden="true" />}
+            </button>
+            <button onClick={handleLogout} disabled={isLoading} title="Sign out"
+              style={{ width: 28, height: 28, flexShrink: 0, borderRadius: "var(--r-sm)", display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", color: "var(--fg-subtle)" }}>
+              <LogOut size={14} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -1244,8 +1243,8 @@ export function Dashboard() {
                       </div>
 
                       <div>
-                        <span className={`chip ${device.status === "online" ? "chip-success" : "chip-danger"}`}>
-                          <span className={`dot${device.status === "online" ? " dot-pulse" : ""}`}></span>
+                        <span className={`chip${device.status === "online" ? " chip-success" : ""}`}>
+                          <span className={`dot${device.status === "online" ? " dot-pulse" : ""}`} style={device.status !== "online" ? { background: "var(--danger)" } : undefined}></span>
                           {device.status}
                         </span>
                         <div className="caption" style={{ marginTop: 6 }}>{device.platform}</div>
@@ -1319,7 +1318,7 @@ export function Dashboard() {
                 <button key={device.deviceId} className={`tab${selectedDeviceId === device.deviceId ? " active" : ""}`} onClick={() => openDeviceStorage(device)} disabled={isLoading}>
                   <Computer size={13} aria-hidden="true" />
                   {device.deviceName}
-                  <span className={`dot${device.status === "online" ? " dot-pulse" : ""}`} style={{ background: device.status === "online" ? "var(--success)" : "var(--danger)", color: device.status === "online" ? "var(--success)" : "var(--danger)", width: 6, height: 6 }}></span>
+                  <span className={`dot${device.status === "online" ? " dot-pulse" : ""}`} style={{ background: device.status === "online" ? "var(--success)" : "var(--danger)", color: "var(--success)", width: 6, height: 6 }}></span>
                 </button>
               ))}
               <button className="tab" onClick={() => setActiveSection("devices")}>

@@ -48,7 +48,6 @@
   background: var(--bg-subtle); color: var(--fg-muted); border: 1px solid var(--line);
 }
 .chip-success { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
-.chip-danger  { background: var(--danger-bg);  color: var(--danger);  border-color: var(--danger-border); }
 .chip-brand { background: var(--brand-50); color: var(--brand-700); border-color: var(--brand-200); }
 .dark .chip-brand { background: rgba(59,130,246,0.10); color: var(--brand-400); border-color: rgba(59,130,246,0.30); }
 
