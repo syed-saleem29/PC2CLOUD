@@ -137,11 +137,11 @@ export default function UpgradePage() {
               razorpay_signature:  response.razorpay_signature,
               plan,
             });
-            showToast(`You're now on the ${plan} plan!`);
+            showToast(`You're now on the ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan!`);
             // Refresh subscription data then go back to dashboard
             const updated = await getSubscription().catch(() => null);
             if (updated) setSubscription(updated);
-            setTimeout(() => { window.location.href = "/dashboard?upgraded=1"; }, 1500);
+            setTimeout(() => { window.location.href = `/dashboard?upgraded=1&plan=${plan}`; }, 1500);
           } catch {
             showToast("Payment received but verification failed. Contact support.", false);
           } finally {
@@ -267,11 +267,11 @@ export default function UpgradePage() {
                   </ul>
 
                   {isCurrent ? (
-                    <button disabled style={{ width: "100%", padding: "10px 0", borderRadius: 10, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface-raised, #f3f4f6)", color: "var(--fg-muted, #6b7280)", fontWeight: 600, fontSize: 14, cursor: "default" }}>
-                      Current plan
+                    <button disabled style={{ width: "100%", padding: "10px 0", borderRadius: 10, border: "1px solid #d1d5db", background: "#f3f4f6", color: "#9ca3af", fontWeight: 600, fontSize: 14, cursor: "default" }}>
+                      ✓ Current plan
                     </button>
                   ) : plan.id === "free" ? (
-                    <button disabled style={{ width: "100%", padding: "10px 0", borderRadius: 10, border: "1px solid var(--border, #e5e7eb)", background: "transparent", color: "var(--fg-muted, #6b7280)", fontWeight: 600, fontSize: 14, cursor: "default" }}>
+                    <button disabled style={{ width: "100%", padding: "10px 0", borderRadius: 10, border: "1px solid #d1d5db", background: "transparent", color: "#9ca3af", fontWeight: 600, fontSize: 14, cursor: "default" }}>
                       Downgrade
                     </button>
                   ) : (
@@ -280,14 +280,18 @@ export default function UpgradePage() {
                       disabled={!!paying}
                       style={{
                         width: "100%", padding: "11px 0", borderRadius: 10, border: "none",
-                        background: isHighlighted ? "var(--primary, #6366f1)" : "var(--fg, #111)",
+                        background: isHighlighted ? "#6366f1" : "#111827",
                         color: "#fff", fontWeight: 700, fontSize: 14,
                         cursor: paying ? "wait" : "pointer",
                         opacity: paying && paying !== plan.id ? 0.5 : 1,
                         transition: "opacity 0.15s",
                       }}
                     >
-                      {paying === plan.id ? "Opening payment…" : `Upgrade to ${plan.name}`}
+                      {paying === plan.id
+                        ? "Opening payment…"
+                        : currentPlan !== "free"
+                          ? `Switch to ${plan.name}`
+                          : `Upgrade to ${plan.name}`}
                     </button>
                   )}
                 </div>

@@ -135,9 +135,9 @@ function buildBreadcrumbs(path: string) {
 }
 
 export function Dashboard() {
-  const upgradedFromStripe =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("upgraded") === "1";
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const upgradedFromStripe = searchParams?.get("upgraded") === "1";
+  const upgradedPlanName = searchParams?.get("plan") ?? "";
   const [activeSection, setActiveSection] = useState<Section>("devices");
   const [mode, setMode] = useState<AuthMode>("login");
   const [authScreen, setAuthScreen] = useState<AuthScreen>("credentials");
@@ -279,7 +279,8 @@ export function Dashboard() {
   // Show upgrade success toast + refresh subscription when returning from Stripe
   useEffect(() => {
     if (!upgradedFromStripe) return;
-    showToast("Your plan has been upgraded!");
+    const planLabel = upgradedPlanName ? upgradedPlanName.charAt(0).toUpperCase() + upgradedPlanName.slice(1) : "";
+    showToast(planLabel ? `You're now on the ${planLabel} plan!` : "Your plan has been upgraded!");
     getSubscription().then(setSubscription).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1212,14 +1213,46 @@ export function Dashboard() {
         </div>
 
         <div className="sidebar-foot">
-          {(!subscription || subscription.plan === "free") && (
+          {subscription?.plan === "team" ? (
+            <div className="sidebar-upgrade">
+              <div className="sidebar-upgrade-eyebrow" style={{ color: "var(--primary, #6366f1)" }}>
+                <Sparkles size={11} aria-hidden="true" /> Team plan
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>
+                {subscription.devices.used} / {subscription.devices.limit} devices used
+              </div>
+              <div style={{ fontSize: 11, color: "var(--fg-muted)", marginBottom: 0 }}>
+                {subscription.renewalDate
+                  ? `Renews ${new Date(subscription.renewalDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                  : "Unlimited transfers · 10 PCs"}
+              </div>
+            </div>
+          ) : subscription?.plan === "pro" ? (
+            <div className="sidebar-upgrade">
+              <div className="sidebar-upgrade-eyebrow" style={{ color: "var(--primary, #6366f1)" }}>
+                <Zap size={11} aria-hidden="true" /> Pro plan
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>
+                {subscription.devices.used} / {subscription.devices.limit} devices used
+              </div>
+              <div style={{ fontSize: 11, color: "var(--fg-muted)", marginBottom: 8 }}>
+                {subscription.renewalDate
+                  ? `Renews ${new Date(subscription.renewalDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                  : "Unlimited transfers · 3 PCs"}
+              </div>
+              <button className="btn btn-secondary btn-sm" style={{ width: "100%" }}
+                onClick={() => { window.location.href = "/upgrade"; }}>
+                <Sparkles size={12} aria-hidden="true" /> Upgrade to Team
+              </button>
+            </div>
+          ) : (
             <div className="sidebar-upgrade">
               <div className="sidebar-upgrade-eyebrow">
                 <Sparkles size={11} aria-hidden="true" /> Free plan
               </div>
               <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>
                 {subscription
-                  ? `${subscription.devices.used} / ${subscription.devices.limit} device${subscription.devices.limit === 1 ? "" : "s"}`
+                  ? `${subscription.devices.used} / ${subscription.devices.limit} device${subscription.devices.limit === 1 ? "" : "s"} used`
                   : "Upgrade to Pro"}
               </div>
               <div style={{ fontSize: 11, color: "var(--fg-muted)", marginBottom: 8 }}>
@@ -1341,12 +1374,17 @@ export function Dashboard() {
                     <div style={{ width: `${subscription.devices.limit ? Math.min(100, (subscription.devices.used / subscription.devices.limit) * 100) : 0}%`, background: subscription.devices.used >= subscription.devices.limit ? "var(--danger, #ef4444)" : undefined }}></div>
                   </div>
                 </div>
-                {subscription.plan === "free" && (
+                {subscription.plan === "free" ? (
                   <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}
                     onClick={() => { window.location.href = "/upgrade"; }}>
                     <Sparkles size={12} aria-hidden="true" /> Upgrade
                   </button>
-                )}
+                ) : subscription.plan === "pro" ? (
+                  <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}
+                    onClick={() => { window.location.href = "/upgrade"; }}>
+                    <Zap size={12} aria-hidden="true" /> Go Team
+                  </button>
+                ) : null}
               </div>
             )}
 
