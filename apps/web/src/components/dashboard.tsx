@@ -44,6 +44,8 @@ import {
   AuthScreen,
   CloudFile,
   Device,
+  PLAN_DEVICE_LIMITS,
+  Subscription,
   authenticateUser,
   clearRefreshToken,
   clearWebToken,
@@ -54,6 +56,7 @@ import {
   getDeviceFiles,
   getDevices,
   getDownloadUrl,
+  getSubscription,
   getViewUrl,
   logoutUser,
   moveItem,
@@ -131,7 +134,7 @@ function buildBreadcrumbs(path: string) {
   return crumbs;
 }
 
-export function Dashboard() {
+export function Dashboard({ upgradedFromStripe = false }: { upgradedFromStripe?: boolean }) {
   const [activeSection, setActiveSection] = useState<Section>("devices");
   const [mode, setMode] = useState<AuthMode>("login");
   const [authScreen, setAuthScreen] = useState<AuthScreen>("credentials");
@@ -172,6 +175,7 @@ export function Dashboard() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [isLoadingActivity, setIsLoadingActivity] = useState(false);
   const [fingerprintWarnings, setFingerprintWarnings] = useState<{ deviceId: string; deviceName: string }[]>([]);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [draggingFile, setDraggingFile] = useState<CloudFile | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
@@ -269,6 +273,14 @@ export function Dashboard() {
     });
   }
 
+  // Show upgrade success toast + refresh subscription when returning from Stripe
+  useEffect(() => {
+    if (!upgradedFromStripe) return;
+    showToast("Your plan has been upgraded!");
+    getSubscription().then(setSubscription).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Initial auth check — also restores encryption key from sessionStorage if present
   useEffect(() => {
     (async () => {
@@ -277,8 +289,9 @@ export function Dashboard() {
         const data = await getCurrentUser();
         setUser(data.user);
         setIsAuthenticated(true);
-        const devData = await getDevices();
+        const [devData, subData] = await Promise.all([getDevices(), getSubscription().catch(() => null)]);
         setDevices(devData.devices);
+        if (subData) setSubscription(subData);
       } catch {
         setIsAuthenticated(false);
       }
@@ -420,8 +433,9 @@ export function Dashboard() {
         await setSessionKey(encKey);
       } catch { /* non-fatal: encryption unavailable this session */ }
       setPassword("");
-      const devData = await getDevices();
+      const [devData, subData] = await Promise.all([getDevices(), getSubscription().catch(() => null)]);
       setDevices(devData.devices);
+      if (subData) setSubscription(subData);
     } catch (error) {
       if (error instanceof ApiError && error.status === 403) {
         setPendingEmail(email);
@@ -451,8 +465,9 @@ export function Dashboard() {
       } catch { /* non-fatal */ }
       setPassword("");
       setAuthScreen("credentials");
-      const devData = await getDevices();
+      const [devData, subData] = await Promise.all([getDevices(), getSubscription().catch(() => null)]);
       setDevices(devData.devices);
+      if (subData) setSubscription(subData);
     } catch (error) {
       setAuthMessage(error instanceof Error ? error.message : "Verification failed");
       resetOtp();
@@ -1194,16 +1209,25 @@ export function Dashboard() {
         </div>
 
         <div className="sidebar-foot">
-          <div className="sidebar-upgrade">
-            <div className="sidebar-upgrade-eyebrow">
-              <Sparkles size={11} aria-hidden="true" /> Upgrade
+          {(!subscription || subscription.plan === "free") && (
+            <div className="sidebar-upgrade">
+              <div className="sidebar-upgrade-eyebrow">
+                <Sparkles size={11} aria-hidden="true" /> Free plan
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>
+                {subscription
+                  ? `${subscription.devices.used} / ${subscription.devices.limit} device${subscription.devices.limit === 1 ? "" : "s"}`
+                  : "Upgrade to Pro"}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--fg-muted)", marginBottom: 8 }}>
+                Connect up to 3 PCs and get unlimited transfers.
+              </div>
+              <button className="btn btn-primary btn-sm" style={{ width: "100%" }}
+                onClick={() => { window.location.href = "/upgrade"; }}>
+                Upgrade to Pro
+              </button>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>Try Pro for free</div>
-            <div style={{ fontSize: 11, color: "var(--fg-muted)", marginBottom: 8 }}>
-              Multi-device, relay acceleration, snapshots.
-            </div>
-            <button className="btn btn-primary btn-sm" style={{ width: "100%" }}>Start trial</button>
-          </div>
+          )}
 
           <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", borderRadius: "var(--r-sm)" }}>
             <span className="avatar" style={{ flexShrink: 0 }}>{(user?.userName || user?.userEmail || "?").slice(0, 1).toUpperCase()}</span>
@@ -1302,6 +1326,42 @@ export function Dashboard() {
               </div>
             </div>
 
+            {/* Device slot usage */}
+            {subscription && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: "var(--r)", background: "var(--surface-raised, var(--surface))", border: "1px solid var(--border)", marginBottom: 12, fontSize: 13 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                    <span style={{ fontWeight: 500 }}>{subscription.devices.used} / {subscription.devices.limit} device{subscription.devices.limit === 1 ? "" : "s"} used</span>
+                    <span style={{ textTransform: "capitalize", color: "var(--fg-muted)" }}>{subscription.plan} plan</span>
+                  </div>
+                  <div className="bar">
+                    <div style={{ width: `${subscription.devices.limit ? Math.min(100, (subscription.devices.used / subscription.devices.limit) * 100) : 0}%`, background: subscription.devices.used >= subscription.devices.limit ? "var(--danger, #ef4444)" : undefined }}></div>
+                  </div>
+                </div>
+                {subscription.plan === "free" && (
+                  <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}
+                    onClick={() => { window.location.href = "/upgrade"; }}>
+                    <Sparkles size={12} aria-hidden="true" /> Upgrade
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Bandwidth usage for free plan */}
+            {subscription?.bandwidth.limitBytes != null && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: "var(--r)", background: "var(--surface-raised, var(--surface))", border: "1px solid var(--border)", marginBottom: 12, fontSize: 13 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                    <span style={{ fontWeight: 500 }}>Monthly transfers</span>
+                    <span style={{ color: "var(--fg-muted)" }}>{formatBytes(subscription.bandwidth.usedBytes)} / {formatBytes(subscription.bandwidth.limitBytes)}</span>
+                  </div>
+                  <div className="bar">
+                    <div style={{ width: `${Math.min(100, (subscription.bandwidth.usedBytes / subscription.bandwidth.limitBytes) * 100)}%`, background: subscription.bandwidth.usedBytes >= subscription.bandwidth.limitBytes ? "var(--danger, #ef4444)" : undefined }}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {devices.length === 0 ? (
               <div className="empty-state">
                 <Computer size={36} aria-hidden="true" />
@@ -1362,6 +1422,24 @@ export function Dashboard() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Upgrade prompt when at device limit */}
+            {subscription && subscription.devices.used >= subscription.devices.limit && subscription.plan !== "team" && (
+              <div style={{ marginTop: 16, padding: "16px 20px", borderRadius: "var(--r)", border: "1px solid var(--primary, #6366f1)", background: "var(--primary-muted, rgba(99,102,241,0.06))", display: "flex", gap: 16, alignItems: "center" }}>
+                <Sparkles size={20} style={{ color: "var(--primary)", flexShrink: 0 }} aria-hidden="true" />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>Device limit reached</div>
+                  <div style={{ fontSize: 13, color: "var(--fg-muted)" }}>
+                    Your {subscription.plan} plan allows {subscription.devices.limit} device{subscription.devices.limit === 1 ? "" : "s"}.
+                    Upgrade to {subscription.plan === "free" ? "Pro (3 devices)" : "Team (10 devices)"} to connect more PCs.
+                  </div>
+                </div>
+                <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}
+                  onClick={() => { window.location.href = "/upgrade"; }}>
+                  Upgrade
+                </button>
               </div>
             )}
           </div>

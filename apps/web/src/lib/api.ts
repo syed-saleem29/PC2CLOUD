@@ -257,6 +257,48 @@ export function createPreviewFileIndex(deviceId: string) {
   );
 }
 
+export type Subscription = {
+  plan: "free" | "pro" | "team";
+  status: "active" | "cancelled" | "expired";
+  renewalDate: string | null;
+  cancelledAt: string | null;
+  devices: { used: number; limit: number };
+  bandwidth: { usedBytes: number; limitBytes: number | null };
+};
+
+export const PLAN_DEVICE_LIMITS: Record<string, number> = { free: 1, pro: 3, team: 10 };
+
+export function getSubscription() {
+  return request<Subscription>("/api/subscription");
+}
+
+export type RazorpayOrder = {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  plan: string;
+};
+
+export function createSubscriptionOrder(plan: "pro" | "team") {
+  return request<RazorpayOrder>("/api/subscription/create-order", {
+    method: "POST",
+    body: JSON.stringify({ plan }),
+  });
+}
+
+export function verifySubscriptionPayment(payload: {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+  plan: string;
+}) {
+  return request<{ message: string; plan: string; renewalDate: string }>(
+    "/api/subscription/verify-payment",
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+}
+
 export type AuditLog = {
   _id: string;
   action: string;

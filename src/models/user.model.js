@@ -30,6 +30,14 @@ const userSchema = new mongoose.Schema({
         expiresAt: { type: Date, required: true },
       },
     ],
+    subscription: {
+      plan: { type: String, enum: ["free", "pro", "team"], default: "free" },
+      status: { type: String, enum: ["active", "cancelled", "expired"], default: "active" },
+      razorpayPaymentId: { type: String, default: null },
+      razorpayOrderId: { type: String, default: null },
+      renewalDate: { type: Date, default: null },
+      cancelledAt: { type: Date, default: null },
+    },
 })
 
 const userModel = mongoose.model("users",userSchema)

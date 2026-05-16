@@ -1,7 +1,30 @@
 const crypto = require("crypto");
 const deviceModel = require("../models/device.model");
+const fileModel = require("../models/file.model");
+const MonthlyUsage = require("../models/monthlyUsage.model");
+const userModel = require("../models/user.model");
 const realtime = require("../realtime");
 const { logAction } = require("../utils/audit");
+const { getDeviceLimit, getBandwidthLimit } = require("../utils/planLimits");
+
+function currentMonthStart() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+async function getMonthlyUsage(userId) {
+  const usage = await MonthlyUsage.findOne({ user: userId, month: currentMonthStart() });
+  return usage?.bytesTransferred ?? 0;
+}
+
+async function trackTransfer(userId, bytes) {
+  if (!bytes || bytes <= 0) return;
+  await MonthlyUsage.findOneAndUpdate(
+    { user: userId, month: currentMonthStart() },
+    { $inc: { bytesTransferred: bytes } },
+    { upsert: true },
+  ).catch(() => {});
+}
 
 function parseStorageBytes(value) {
   if (value === undefined || value === null || value === "") {
@@ -67,6 +90,29 @@ async function registerDeviceController(req, res) {
   // First install can omit deviceId. In that case the backend creates one, and
   // the desktop app should save it locally for future heartbeats/reconnects.
   const currentDeviceId = deviceId || crypto.randomUUID();
+
+  // Only enforce the device limit for genuinely new devices.
+  // A re-registration (same deviceId already in DB) is always allowed.
+  const isExistingDevice = deviceId
+    ? !!(await deviceModel.findOne({ user: req.user._id, deviceId }))
+    : false;
+
+  if (!isExistingDevice) {
+    const userDoc = await userModel.findById(req.user._id);
+    const plan = userDoc.subscription?.plan || "free";
+    const limit = getDeviceLimit(plan);
+    const count = await deviceModel.countDocuments({ user: req.user._id });
+
+    if (count >= limit) {
+      return res.status(402).json({
+        error: "DEVICE_LIMIT_EXCEEDED",
+        currentPlan: plan,
+        currentDevices: count,
+        limit,
+        message: `Your ${plan} plan allows ${limit} device${limit === 1 ? "" : "s"}. Upgrade to add more.`,
+      });
+    }
+  }
 
   const deviceUpdates = {
     deviceName: deviceName.trim(),
@@ -272,6 +318,29 @@ async function downloadFileController(req, res) {
     return res.status(503).json({ message: "Device is offline" });
   }
 
+  // Bandwidth check for free plan — look up file size from the index
+  const userDoc = await userModel.findById(req.user._id);
+  const plan = userDoc.subscription?.plan || "free";
+  const bandwidthLimit = getBandwidthLimit(plan);
+
+  if (isFinite(bandwidthLimit)) {
+    const fileRecord = await fileModel.findOne({ user: req.user._id, deviceId, filePath }).lean();
+    const fileSize = fileRecord?.sizeBytes ?? 0;
+    const used = await getMonthlyUsage(req.user._id);
+
+    if (fileSize > 0 && used + fileSize > bandwidthLimit) {
+      return res.status(402).json({
+        error: "BANDWIDTH_LIMIT_EXCEEDED",
+        usedBytes: used,
+        limitBytes: bandwidthLimit,
+        message: `You've used your monthly transfer allowance. Upgrade to Pro for unlimited transfers.`,
+      });
+    }
+
+    // Track optimistically before the relay starts
+    trackTransfer(req.user._id, fileSize);
+  }
+
   const requestId = crypto.randomUUID();
 
   const timeout = setTimeout(() => {
@@ -306,6 +375,24 @@ async function uploadFileController(req, res) {
 
   const requestId = crypto.randomUUID();
   const buffer = req.body;
+
+  // Bandwidth check for free plan
+  const userDoc = await userModel.findById(req.user._id);
+  const plan = userDoc.subscription?.plan || "free";
+  const bandwidthLimit = getBandwidthLimit(plan);
+
+  if (isFinite(bandwidthLimit)) {
+    const used = await getMonthlyUsage(req.user._id);
+    if (used + buffer.length > bandwidthLimit) {
+      return res.status(402).json({
+        error: "BANDWIDTH_LIMIT_EXCEEDED",
+        usedBytes: used,
+        limitBytes: bandwidthLimit,
+        message: `You've used your monthly transfer allowance. Upgrade to Pro for unlimited transfers.`,
+      });
+    }
+    trackTransfer(req.user._id, buffer.length);
+  }
 
   const timeout = setTimeout(() => {
     realtime.pendingUploads.delete(requestId);

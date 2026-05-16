@@ -9,6 +9,7 @@ const authRouter = require("./routes/auth.routes")
 const deviceRouter = require("./routes/device.routes")
 const transferRouter = require("./routes/transfer.routes")
 const auditRouter = require("./routes/audit.routes")
+const subscriptionRouter = require("./routes/subscription.routes")
 
 // Trust the first proxy hop so req.ip reflects the real client IP behind nginx/Cloudflare
 if (process.env.NODE_ENV === "production") {
@@ -40,6 +41,7 @@ app.use("/api/auth",authRouter)
 app.use("/api/devices", deviceRouter)
 app.use("/api/transfer", transferRouter)
 app.use("/api/audit", auditRouter)
+app.use("/api/subscription", subscriptionRouter)
 
 // Serve installer files for download + auto-updater
 app.use("/releases", express.static(path.join(__dirname, "../releases"), {
