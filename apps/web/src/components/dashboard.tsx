@@ -63,6 +63,15 @@ import {
   updateDeviceName,
   verifyEmail,
 } from "@/lib/api";
+import {
+  clearSessionKey,
+  decryptFile,
+  deriveEncryptionKey,
+  encryptFile,
+  getSessionKey,
+  loadSessionKey,
+  setSessionKey,
+} from "@/lib/crypto";
 
 type Section = "devices" | "storage" | "activity" | "security" | "settings" | "help";
 
@@ -247,10 +256,11 @@ export function Dashboard() {
     });
   }
 
-  // Initial auth check
+  // Initial auth check — also restores encryption key from sessionStorage if present
   useEffect(() => {
     (async () => {
       try {
+        await loadSessionKey();
         const data = await getCurrentUser();
         setUser(data.user);
         setIsAuthenticated(true);
@@ -373,6 +383,10 @@ export function Dashboard() {
       if (data.token) setWebToken(data.token);
       setUser(data.user ?? null);
       setIsAuthenticated(true);
+      try {
+        const encKey = await deriveEncryptionKey(password, email);
+        await setSessionKey(encKey);
+      } catch { /* non-fatal: encryption unavailable this session */ }
       setPassword("");
       const devData = await getDevices();
       setDevices(devData.devices);
@@ -398,6 +412,10 @@ export function Dashboard() {
       if (data.token) setWebToken(data.token);
       setUser(data.user);
       setIsAuthenticated(true);
+      try {
+        const encKey = await deriveEncryptionKey(password, pendingEmail);
+        await setSessionKey(encKey);
+      } catch { /* non-fatal */ }
       setPassword("");
       setAuthScreen("credentials");
       const devData = await getDevices();
@@ -470,6 +488,7 @@ export function Dashboard() {
     socketRef.current?.disconnect();
     socketRef.current = null;
     clearWebToken();
+    clearSessionKey();
     try {
       await logoutUser();
     } catch {}
@@ -571,6 +590,7 @@ export function Dashboard() {
       }
       const contentLength = res.headers.get("Content-Length");
       const total = contentLength ? parseInt(contentLength, 10) : 0;
+      const encKey = getSessionKey();
 
       if (total > 0 && res.body) {
         const reader = res.body.getReader();
@@ -585,11 +605,13 @@ export function Dashboard() {
           setFileProgress((prev) => ({ ...prev, [file.id]: Math.min(99, Math.round((received / total) * 100)) }));
         }
         setFileProgress((prev) => { const n = { ...prev }; delete n[file.id]; return n; });
-        const blob = new Blob(chunks);
-        triggerBlobDownload(blob, file.fileName);
+        const raw = await new Blob(chunks).arrayBuffer();
+        const finalBytes = encKey ? await decryptFile(encKey, raw) : raw;
+        triggerBlobDownload(new Blob([finalBytes]), file.fileName);
       } else {
-        const blob = await res.blob();
-        triggerBlobDownload(blob, file.fileName);
+        const raw = await res.arrayBuffer();
+        const finalBytes = encKey ? await decryptFile(encKey, raw) : raw;
+        triggerBlobDownload(new Blob([finalBytes]), file.fileName);
       }
     } catch {
       setFileProgress((prev) => { const n = { ...prev }; delete n[file.id]; return n; });
@@ -611,7 +633,10 @@ export function Dashboard() {
         showToast((data as { message?: string }).message || "Could not load preview");
         return;
       }
-      const blob = await res.blob();
+      const encKey = getSessionKey();
+      const rawBytes = await res.arrayBuffer();
+      const decryptedBytes = encKey ? await decryptFile(encKey, rawBytes) : rawBytes;
+      const blob = new Blob([decryptedBytes], { type: file.mimeType || "application/octet-stream" });
       const mime = file.mimeType || "";
 
       if (mime.startsWith("image/")) {
@@ -664,25 +689,35 @@ export function Dashboard() {
     }
   }
 
-  function uploadFileXhr(deviceId: string, file: File, destPath: string): Promise<boolean> {
+  async function uploadFileXhr(deviceId: string, file: File, destPath: string): Promise<boolean> {
+    const encKey = getSessionKey();
+    let body: Blob;
+    if (encKey) {
+      const plaintext = await file.arrayBuffer();
+      const ciphertext = await encryptFile(encKey, plaintext);
+      body = new Blob([ciphertext], { type: "application/octet-stream" });
+    } else {
+      body = file;
+    }
+
     return new Promise((resolve) => {
       const xhr = new XMLHttpRequest();
-      const key = `upload:${destPath}`;
+      const progressKey = `upload:${destPath}`;
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
-          setFileProgress((prev) => ({ ...prev, [key]: Math.round((e.loaded / e.total) * 100) }));
+          setFileProgress((prev) => ({ ...prev, [progressKey]: Math.round((e.loaded / e.total) * 100) }));
         }
       };
-      const cleanup = () => setFileProgress((prev) => { const n = { ...prev }; delete n[key]; return n; });
+      const cleanup = () => setFileProgress((prev) => { const n = { ...prev }; delete n[progressKey]; return n; });
       xhr.onload = () => { cleanup(); resolve(xhr.status >= 200 && xhr.status < 300); };
       xhr.onerror = () => { cleanup(); resolve(false); };
       xhr.open("POST", `${API_URL}/api/devices/${deviceId}/upload?path=${encodeURIComponent(destPath)}`);
-      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.setRequestHeader("Content-Type", encKey ? "application/octet-stream" : (file.type || "application/octet-stream"));
       xhr.setRequestHeader("x-file-name", encodeURIComponent(file.name));
       xhr.withCredentials = true;
       const uploadToken = typeof window !== "undefined" ? localStorage.getItem("pc2cloud_token") : null;
       if (uploadToken) xhr.setRequestHeader("Authorization", `Bearer ${uploadToken}`);
-      xhr.send(file);
+      xhr.send(body);
     });
   }
 
