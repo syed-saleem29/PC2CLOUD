@@ -66,19 +66,19 @@ const steps = [
 
 const pricing = [
   {
-    name: "Free", price: "$0", period: "/mo", desc: "Get started, no strings attached.",
+    name: "Free", price: "₹0", period: "/mo", desc: "Get started, no strings attached.",
     cta: "Get started free", ctaHref: "/dashboard", featured: false,
-    features: ["1 PC", "5 GB file transfer / mo", "Web dashboard", "Basic file manager", "Community support"],
+    features: ["1 PC", "5 GB file transfer / mo", "Web dashboard", "File browser & preview", "Community support"],
   },
   {
-    name: "Pro", price: "$4", period: "/mo", desc: "Everything you need for personal use.",
-    cta: "Start free trial", ctaHref: "/dashboard", featured: true,
-    features: ["3 PCs", "Unlimited file transfer", "Web + desktop access", "Advanced file manager", "Priority support", "Usage analytics"],
+    name: "Pro", price: "₹399", period: "/mo", desc: "Everything you need for personal use.",
+    cta: "Start 1-month free trial", ctaHref: "/dashboard?trial=1", featured: true,
+    features: ["3 PCs", "Unlimited file transfers", "Web + desktop access", "File browser & preview", "Priority email support"],
   },
   {
-    name: "Team", price: "$12", period: "/mo", desc: "For teams sharing PC resources.",
-    cta: "Contact sales", ctaHref: "mailto:hello@pc2cloud.com", featured: false,
-    features: ["10 PCs", "Unlimited everything", "Team workspace", "Admin controls", "SSO / SAML", "SLA + dedicated support"],
+    name: "Team", price: "₹999", period: "/mo", desc: "For teams sharing PC resources.",
+    cta: "Upgrade to Team", ctaHref: "/upgrade", featured: false,
+    features: ["10 PCs", "Unlimited everything", "File browser & preview", "Admin controls", "Dedicated support"],
   },
 ];
 
@@ -87,7 +87,7 @@ const faqs = [
   { q: "Does it work if my PC is behind a router or firewall?", a: "Yes. The desktop agent initiates an outbound connection to our relay server, so no inbound ports need to be opened on your router." },
   { q: "What operating systems are supported?", a: "The web dashboard works in any modern browser. The desktop agent currently supports Windows 10/11. macOS and Linux agents are on the roadmap." },
   { q: "How is this different from TeamViewer or AnyDesk?", a: "PC2CLOUD focuses on file management and background access rather than screen sharing. It's lighter, faster for file tasks, and designed for developers and power users who need remote storage access, not remote desktop." },
-  { q: "Can I try it for free?", a: "Absolutely. The Free plan is free forever with 1 PC and 5 GB/mo of transfers. No credit card needed." },
+  { q: "Can I try it for free?", a: "Yes — two ways. The Free plan is free forever with 1 PC and 5 GB/mo of transfers. Or start a 1-month Pro trial (3 PCs + unlimited transfers) with no credit card required. The trial is one-time per account." },
 ];
 
 export default function Marketing() {

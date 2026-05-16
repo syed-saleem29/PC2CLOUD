@@ -73,6 +73,16 @@ export default function UpgradePage() {
   const [paying, setPaying] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
+  // Sync theme with the dashboard (stored in localStorage under pc2cloud_theme)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("pc2cloud_theme") as "light" | "dark" | null;
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const isDark = saved === "dark" || (!saved && prefersDark);
+      document.documentElement.classList.toggle("dark", isDark);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     getSubscription()
       .then((sub) => {
@@ -199,15 +209,31 @@ export default function UpgradePage() {
           </p>
         </div>
 
-        {/* Current plan info */}
+        {/* Current plan / trial info */}
         {currentPlan !== "free" && subscription && (
-          <div style={{ maxWidth: 480, margin: "0 auto 40px", padding: "14px 20px", borderRadius: 12, border: "1px solid var(--border, #e5e7eb)", background: "var(--surface, #fff)", fontSize: 14 }}>
-            <strong>{currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)} plan</strong>
-            {" — "}{subscription.status}
-            {subscription.renewalDate && (
-              <span style={{ color: "var(--fg-muted, #6b7280)" }}>
-                {" · "}Renews {new Date(subscription.renewalDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
-              </span>
+          <div style={{ maxWidth: 480, margin: "0 auto 40px", padding: "14px 20px", borderRadius: 12, border: `1px solid ${subscription.status === "trial" ? "#f59e0b" : "var(--border, #e5e7eb)"}`, background: "var(--bg-elevated, #fff)", fontSize: 14 }}>
+            {subscription.status === "trial" ? (
+              <>
+                <span style={{ color: "#f59e0b", fontWeight: 700 }}>⚡ Pro trial active</span>
+                {subscription.renewalDate && (
+                  <span style={{ color: "var(--fg-muted, #6b7280)", marginLeft: 8 }}>
+                    · Trial ends {new Date(subscription.renewalDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                  </span>
+                )}
+                <div style={{ fontSize: 12, color: "var(--fg-muted, #6b7280)", marginTop: 4 }}>
+                  Upgrade below to keep Pro after your trial.
+                </div>
+              </>
+            ) : (
+              <>
+                <strong>{currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)} plan</strong>
+                {" — "}{subscription.status}
+                {subscription.renewalDate && (
+                  <span style={{ color: "var(--fg-muted, #6b7280)" }}>
+                    {" · "}Renews {new Date(subscription.renewalDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                  </span>
+                )}
+              </>
             )}
           </div>
         )}
@@ -218,7 +244,9 @@ export default function UpgradePage() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
             {PLANS.map((plan) => {
-              const isCurrent    = currentPlan === plan.id;
+              const isTrial      = subscription?.status === "trial";
+              // Trial users on Pro should still be able to pay to keep it
+              const isCurrent    = currentPlan === plan.id && !isTrial;
               const isHighlighted = plan.highlight;
 
               return (
@@ -289,9 +317,11 @@ export default function UpgradePage() {
                     >
                       {paying === plan.id
                         ? "Opening payment…"
-                        : currentPlan !== "free"
-                          ? `Switch to ${plan.name}`
-                          : `Upgrade to ${plan.name}`}
+                        : isTrial && plan.id === "pro"
+                          ? "Keep Pro — Subscribe"
+                          : currentPlan !== "free" && !isTrial
+                            ? `Switch to ${plan.name}`
+                            : `Upgrade to ${plan.name}`}
                     </button>
                   )}
                 </div>

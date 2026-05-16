@@ -33,9 +33,22 @@ function currentMonthStart() {
 // ── GET /api/subscription ─────────────────────────────────────────────────────
 
 async function getSubscriptionController(req, res) {
-  const user = await userModel.findById(req.user._id);
-  const plan   = user.subscription?.plan   || "free";
-  const status = user.subscription?.status || "active";
+  let user = await userModel.findById(req.user._id);
+  let plan   = user.subscription?.plan   || "free";
+  let status = user.subscription?.status || "active";
+
+  // Auto-expire trial: if trial period is over, downgrade back to free
+  if (status === "trial" && user.subscription?.renewalDate && new Date() > user.subscription.renewalDate) {
+    await userModel.findByIdAndUpdate(req.user._id, {
+      $set: {
+        "subscription.plan":        "free",
+        "subscription.status":      "active",
+        "subscription.renewalDate": null,
+      },
+    });
+    plan   = "free";
+    status = "active";
+  }
 
   const [deviceCount, usageRecord] = await Promise.all([
     deviceModel.countDocuments({ user: req.user._id }),
@@ -47,6 +60,7 @@ async function getSubscriptionController(req, res) {
   res.status(200).json({
     plan,
     status,
+    trialUsed:    user.subscription?.trialUsed    ?? false,
     renewalDate:  user.subscription?.renewalDate  ?? null,
     cancelledAt:  user.subscription?.cancelledAt  ?? null,
     devices: {
@@ -57,6 +71,40 @@ async function getSubscriptionController(req, res) {
       usedBytes:  usageRecord?.bytesTransferred ?? 0,
       limitBytes: isFinite(bandwidthLimit) ? bandwidthLimit : null,
     },
+  });
+}
+
+// ── POST /api/subscription/start-trial ───────────────────────────────────────
+
+async function startTrialController(req, res) {
+  const user = await userModel.findById(req.user._id);
+
+  if (user.subscription?.trialUsed) {
+    return res.status(409).json({ message: "You have already used your free trial." });
+  }
+
+  if (user.subscription?.plan !== "free") {
+    return res.status(409).json({ message: "Free trial is only available on the Free plan." });
+  }
+
+  const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  await userModel.findByIdAndUpdate(req.user._id, {
+    $set: {
+      "subscription.plan":        "pro",
+      "subscription.status":      "trial",
+      "subscription.trialUsed":   true,
+      "subscription.renewalDate": trialEndsAt,
+    },
+  });
+
+  console.log(`[trial] started — userId:${req.user._id} trialEndsAt:${trialEndsAt.toISOString()}`);
+
+  res.status(200).json({
+    message:     "Free trial activated. Enjoy Pro for 30 days!",
+    plan:        "pro",
+    status:      "trial",
+    trialEndsAt,
   });
 }
 
@@ -147,6 +195,7 @@ async function verifyPaymentController(req, res) {
 
 module.exports = {
   getSubscriptionController,
+  startTrialController,
   createOrderController,
   verifyPaymentController,
 };

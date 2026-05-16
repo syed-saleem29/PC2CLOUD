@@ -49,6 +49,7 @@ import {
   authenticateUser,
   clearRefreshToken,
   clearWebToken,
+  startTrial,
   createFolder,
   deleteFile,
   getAuditLogs,
@@ -138,6 +139,7 @@ export function Dashboard() {
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const upgradedFromStripe = searchParams?.get("upgraded") === "1";
   const upgradedPlanName = searchParams?.get("plan") ?? "";
+  const wantsTrial = searchParams?.get("trial") === "1";
   const [activeSection, setActiveSection] = useState<Section>("devices");
   const [mode, setMode] = useState<AuthMode>("login");
   const [authScreen, setAuthScreen] = useState<AuthScreen>("credentials");
@@ -296,10 +298,20 @@ export function Dashboard() {
         const [devData, subData] = await Promise.all([getDevices(), getSubscription().catch(() => null)]);
         setDevices(devData.devices);
         if (subData) setSubscription(subData);
+        // Activate trial if user arrived from marketing page with ?trial=1
+        if (wantsTrial && subData && !subData.trialUsed && subData.plan === "free") {
+          try {
+            await startTrial();
+            const fresh = await getSubscription().catch(() => null);
+            if (fresh) setSubscription(fresh);
+            showToast("🎉 Your 30-day Pro trial is now active!");
+          } catch { /* already used or not eligible — ignore silently */ }
+        }
       } catch {
         setIsAuthenticated(false);
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Socket — reconnects whenever auth state changes
@@ -440,6 +452,14 @@ export function Dashboard() {
       const [devData, subData] = await Promise.all([getDevices(), getSubscription().catch(() => null)]);
       setDevices(devData.devices);
       if (subData) setSubscription(subData);
+      if (wantsTrial && subData && !subData.trialUsed && subData.plan === "free") {
+        try {
+          await startTrial();
+          const fresh = await getSubscription().catch(() => null);
+          if (fresh) setSubscription(fresh);
+          showToast("🎉 Your 30-day Pro trial is now active!");
+        } catch { /* already used or not eligible */ }
+      }
     } catch (error) {
       if (error instanceof ApiError && error.status === 403) {
         setPendingEmail(email);
@@ -1226,6 +1246,24 @@ export function Dashboard() {
                   ? `Renews ${new Date(subscription.renewalDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
                   : "Unlimited transfers · 10 PCs"}
               </div>
+            </div>
+          ) : subscription?.plan === "pro" && subscription.status === "trial" ? (
+            <div className="sidebar-upgrade">
+              <div className="sidebar-upgrade-eyebrow" style={{ color: "#f59e0b" }}>
+                <Zap size={11} aria-hidden="true" /> Pro trial
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>
+                {subscription.devices.used} / {subscription.devices.limit} devices used
+              </div>
+              <div style={{ fontSize: 11, color: "var(--fg-muted)", marginBottom: 8 }}>
+                {subscription.renewalDate
+                  ? `Trial ends ${new Date(subscription.renewalDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                  : "30-day free trial"}
+              </div>
+              <button className="btn btn-primary btn-sm" style={{ width: "100%" }}
+                onClick={() => { window.location.href = "/upgrade"; }}>
+                <Zap size={12} aria-hidden="true" /> Upgrade to keep Pro
+              </button>
             </div>
           ) : subscription?.plan === "pro" ? (
             <div className="sidebar-upgrade">

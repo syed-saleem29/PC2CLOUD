@@ -259,7 +259,8 @@ export function createPreviewFileIndex(deviceId: string) {
 
 export type Subscription = {
   plan: "free" | "pro" | "team";
-  status: "active" | "cancelled" | "expired";
+  status: "active" | "trial" | "cancelled" | "expired";
+  trialUsed: boolean;
   renewalDate: string | null;
   cancelledAt: string | null;
   devices: { used: number; limit: number };
@@ -270,6 +271,13 @@ export const PLAN_DEVICE_LIMITS: Record<string, number> = { free: 1, pro: 3, tea
 
 export function getSubscription() {
   return request<Subscription>("/api/subscription");
+}
+
+export function startTrial() {
+  return request<{ message: string; plan: string; status: string; trialEndsAt: string }>(
+    "/api/subscription/start-trial",
+    { method: "POST" },
+  );
 }
 
 export type RazorpayOrder = {
