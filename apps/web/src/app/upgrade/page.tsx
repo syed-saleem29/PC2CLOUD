@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Sparkles, ArrowLeft, Zap } from "lucide-react";
 import {
+  ApiError,
   getSubscription,
   createSubscriptionOrder,
   verifySubscriptionPayment,
@@ -76,13 +77,18 @@ export default function UpgradePage() {
     getSubscription()
       .then((sub) => {
         setSubscription(sub);
-        // Pull email from localStorage (set during dashboard login)
         try {
           const raw = localStorage.getItem("pc2cloud_user");
           if (raw) setUser(JSON.parse(raw));
         } catch {}
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          // Not logged in — send back to dashboard which shows the login form
+          window.location.href = "/dashboard";
+          return;
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 

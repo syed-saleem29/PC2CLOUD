@@ -10,6 +10,7 @@ async function authMiddleware(req, res, next) {
     const token = req.cookies.PTC_Token || bearerToken;
 
     if (!token) {
+      console.log(`[auth] 401 no-token  path=${req.path}  hasCookie=${!!req.cookies.PTC_Token}  hasBearer=${!!bearerToken}  origin=${req.headers.origin}`);
       return res.status(401).json({
         message: "Authentication required",
       });
@@ -27,6 +28,7 @@ async function authMiddleware(req, res, next) {
     req.user = user;
     next();
   } catch (error) {
+    console.log(`[auth] 401 error  path=${req.path}  msg=${error.message}  origin=${req.headers.origin}`);
     return res.status(401).json({
       message: "Invalid or expired authentication token",
     });
