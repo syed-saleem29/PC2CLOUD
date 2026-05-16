@@ -9,9 +9,29 @@ const authRouter = require("./routes/auth.routes")
 const deviceRouter = require("./routes/device.routes")
 const transferRouter = require("./routes/transfer.routes")
 
+// Trust the first proxy hop so req.ip reflects the real client IP behind nginx/Cloudflare
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 app.use(cors(corsOptions))
 app.use(express.json())
 app.use(cookieParser())
+
+// Security headers applied to every response
+app.use((req, res, next) => {
+  // Force HTTPS in production
+  if (process.env.NODE_ENV === "production" && !req.secure) {
+    return res.redirect(301, `https://${req.get("host")}${req.url}`);
+  }
+  // Tell browsers to never connect over plain HTTP
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  // Block MIME sniffing
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  // Prevent clickjacking
+  res.setHeader("X-Frame-Options", "DENY");
+  next();
+});
 
 app.get("/", (req, res) => res.json({ status: "ok" }))
 
