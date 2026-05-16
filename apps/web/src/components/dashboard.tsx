@@ -134,7 +134,10 @@ function buildBreadcrumbs(path: string) {
   return crumbs;
 }
 
-export function Dashboard({ upgradedFromStripe = false }: { upgradedFromStripe?: boolean }) {
+export function Dashboard() {
+  const upgradedFromStripe =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("upgraded") === "1";
   const [activeSection, setActiveSection] = useState<Section>("devices");
   const [mode, setMode] = useState<AuthMode>("login");
   const [authScreen, setAuthScreen] = useState<AuthScreen>("credentials");
