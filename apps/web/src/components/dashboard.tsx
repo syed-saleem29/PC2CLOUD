@@ -169,6 +169,7 @@ export function Dashboard() {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [isLoadingActivity, setIsLoadingActivity] = useState(false);
+  const [fingerprintWarnings, setFingerprintWarnings] = useState<{ deviceId: string; deviceName: string }[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [draggingFile, setDraggingFile] = useState<CloudFile | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
@@ -205,6 +206,12 @@ export function Dashboard() {
 
     socket.on("connect_error", () => {
       // Socket failed — fall back to polling until it recovers
+    });
+
+    socket.on("device:fingerprint_warning", ({ deviceId, deviceName }: { deviceId: string; deviceName: string }) => {
+      setFingerprintWarnings((prev) =>
+        prev.find((w) => w.deviceId === deviceId) ? prev : [...prev, { deviceId, deviceName }],
+      );
     });
 
     socketRef.current = socket;
@@ -521,6 +528,7 @@ export function Dashboard() {
       setFiles([]);
       setSelectedDeviceId(null);
       setPassword("");
+      setFingerprintWarnings([]);
       setIsLoading(false);
     }
   }
@@ -1213,6 +1221,24 @@ export function Dashboard() {
       {/* ── Main ── */}
       <div className="main">
 
+        {/* ── Fingerprint warning banners ── */}
+        {fingerprintWarnings.map((w) => (
+          <div key={w.deviceId} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 20px", background: "var(--warning-bg, #fef3c7)", borderBottom: "1px solid var(--warning-border, #fcd34d)", fontSize: 13, color: "var(--warning-fg, #92400e)" }}>
+            <ShieldCheck size={16} style={{ flexShrink: 0 }} aria-hidden="true" />
+            <span style={{ flex: 1 }}>
+              <strong>Security alert:</strong> A different PC is connecting as <strong>{w.deviceName}</strong>. If this wasn&apos;t you, unlink the device immediately.
+            </span>
+            <button onClick={() => { setFingerprintWarnings((prev) => prev.filter((x) => x.deviceId !== w.deviceId)); setActiveSection("security"); }}
+              style={{ flexShrink: 0, fontSize: 12, fontWeight: 600, color: "inherit", background: "none", border: "1px solid currentColor", borderRadius: "var(--r-sm)", padding: "3px 10px", cursor: "pointer" }}>
+              Review
+            </button>
+            <button onClick={() => setFingerprintWarnings((prev) => prev.filter((x) => x.deviceId !== w.deviceId))}
+              style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: "inherit", display: "flex" }}>
+              <X size={14} aria-hidden="true" />
+            </button>
+          </div>
+        ))}
+
         {/* ── Devices ── */}
         {activeSection === "devices" && (
           <div className="page">
@@ -1667,8 +1693,9 @@ export function Dashboard() {
                     rename:          { label: "Renamed",            icon: <Pencil size={15} /> },
                     move:            { label: "Moved",              icon: <FolderOpen size={15} /> },
                     mkdir:           { label: "Folder created",     icon: <FolderPlus size={15} /> },
-                    device_register: { label: "Device connected",   icon: <Computer size={15} />, color: "var(--success)" },
-                    device_unlink:   { label: "Device unlinked",    icon: <Computer size={15} />, color: "var(--danger, #ef4444)" },
+                    device_register:     { label: "Device connected",   icon: <Computer size={15} />, color: "var(--success)" },
+                    device_unlink:       { label: "Device unlinked",    icon: <Computer size={15} />, color: "var(--danger, #ef4444)" },
+                    fingerprint_mismatch:{ label: "Unknown device alert", icon: <ShieldCheck size={15} />, color: "var(--danger, #ef4444)" },
                   };
                   const meta = actionMeta[log.action] ?? { label: log.action, icon: <Activity size={15} /> };
                   const subject = log.filePath

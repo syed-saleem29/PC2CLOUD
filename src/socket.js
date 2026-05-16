@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const deviceModel = require("./models/device.model");
 const realtime = require("./realtime");
+const { logAction } = require("./utils/audit");
 
 function getTokenFromSocket(socket) {
   const authToken = socket.handshake.auth && socket.handshake.auth.token;
@@ -72,6 +73,34 @@ function registerSocketHandlers(io) {
           console.log(`[socket] device:online — device NOT found in DB — deviceId: ${deviceId}, userId: ${socket.user.id}`);
           return;
         }
+
+        // ── Fingerprint check ──────────────────────────────────────────────────
+        const incomingFingerprint = socket.handshake.auth?.fingerprint;
+        if (incomingFingerprint) {
+          if (!device.fingerprint) {
+            // First time we see a fingerprint for this device — save it
+            await deviceModel.findOneAndUpdate(
+              { user: socket.user.id, deviceId },
+              { $set: { fingerprint: incomingFingerprint } },
+            );
+            console.log(`[socket] fingerprint saved — deviceId: ${deviceId}`);
+          } else if (device.fingerprint !== incomingFingerprint) {
+            // Different hardware is claiming this device ID
+            console.warn(`[socket] FINGERPRINT MISMATCH — deviceId: ${deviceId}, userId: ${socket.user.id}`);
+            logAction(socket.user.id, "fingerprint_mismatch", {
+              deviceId,
+              details: {
+                expected: device.fingerprint.slice(0, 8),
+                received: incomingFingerprint.slice(0, 8),
+              },
+            });
+            io.to(`user:${socket.user.id}`).emit("device:fingerprint_warning", {
+              deviceId,
+              deviceName: device.deviceName,
+            });
+          }
+        }
+        // ──────────────────────────────────────────────────────────────────────
 
         socket.deviceId = deviceId;
         realtime.deviceSockets.set(deviceId, socket);

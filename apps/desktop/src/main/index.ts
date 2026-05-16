@@ -1,11 +1,29 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } from "electron";
 import { join, dirname, resolve } from "path";
-import { tmpdir } from "os";
+import { tmpdir, networkInterfaces, cpus, platform, arch, hostname } from "os";
+import { createHash } from "crypto";
 import fs from "fs";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { io: socketIo } = require("socket.io-client");
 
 const isDev = process.env.NODE_ENV === "development";
+
+// Stable hardware fingerprint — SHA-256 of MAC + CPU count + platform + arch + hostname.
+// Used by the server to detect if a different machine is claiming this device ID.
+function getDeviceFingerprint(): string {
+  let mac = "";
+  const ifaces = networkInterfaces();
+  outer: for (const iface of Object.values(ifaces)) {
+    for (const addr of iface ?? []) {
+      if (!addr.internal && addr.mac && addr.mac !== "00:00:00:00:00:00") {
+        mac = addr.mac;
+        break outer;
+      }
+    }
+  }
+  const raw = [mac, String(cpus().length), platform(), arch(), hostname()].join("|");
+  return createHash("sha256").update(raw).digest("hex");
+}
 
 // app.getPath("userData") is safe before ready in Electron 7+, but guard anyway
 let logFile: string;
@@ -147,6 +165,8 @@ app.on("window-all-closed", () => {
   log("window-all-closed fired");
   if (process.platform !== "darwin") app.quit();
 });
+
+ipcMain.handle("device:fingerprint", () => getDeviceFingerprint());
 
 ipcMain.handle("config:read", () => {
   const configPath = join(app.getPath("userData"), "pc2cloud.json");
@@ -328,7 +348,7 @@ ipcMain.handle("socket:connect", (_, deviceId: string, token: string, _apiUrl: s
     deviceSocket = null;
   }
   const socket = socketIo(apiBaseUrl, {
-    auth: { token },
+    auth: { token, fingerprint: getDeviceFingerprint() },
     transports: ["websocket", "polling"],
   });
 

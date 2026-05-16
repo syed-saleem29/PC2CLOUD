@@ -46,6 +46,7 @@ async function registerDeviceController(req, res) {
     sharedFolderPath,
     storageLimitBytes,
     usedStorageBytes,
+    fingerprint,
   } = req.body;
 
   if (!deviceName || typeof deviceName !== "string") {
@@ -76,6 +77,7 @@ async function registerDeviceController(req, res) {
     lastSeen: new Date(),
     ipAddress: req.ip,
     userAgent: req.get("user-agent") || null,
+    ...(fingerprint ? { fingerprint } : {}),
   };
 
   if (sharedFolderName) {

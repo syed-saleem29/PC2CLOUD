@@ -24,6 +24,7 @@ const auditLogSchema = new mongoose.Schema(
         "mkdir",
         "device_register",
         "device_unlink",
+        "fingerprint_mismatch",
       ],
       index: true,
     },

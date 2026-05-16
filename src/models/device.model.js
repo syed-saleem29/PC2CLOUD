@@ -67,6 +67,10 @@ const deviceSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    fingerprint: {
+      type: String,
+      default: null,
+    },
     ipAddress: {
       type: String,
       default: null,

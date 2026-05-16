@@ -49,6 +49,8 @@ export default function Setup({ onDone, onLogout }: { onDone: (deviceId: string,
       const folderPath: string = nodePath.join(selectedDir, "PC2CLOUD");
       nodeFs.mkdirSync(folderPath, { recursive: true });
 
+      const fingerprint: string = await ipc().invoke("device:fingerprint");
+
       const res = await apiFetch(`${API_URL}/api/devices/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,6 +61,7 @@ export default function Setup({ onDone, onLogout }: { onDone: (deviceId: string,
           sharedFolderPath: folderPath,
           storageLimitBytes: diskInfo.free,
           usedStorageBytes: 0,
+          fingerprint,
         }),
       });
       const data = await res.json();
