@@ -76,10 +76,13 @@ async function createOrderController(req, res) {
 
   const razorpay = getRazorpay();
 
+  // Receipt must be ≤ 40 chars per Razorpay spec
+  const receipt = `r_${String(req.user._id).slice(-8)}_${Date.now().toString(36).slice(-6)}`;
+
   const order = await razorpay.orders.create({
     amount:   amountPaise,
     currency: "INR",
-    receipt:  `rcpt_${req.user._id}_${Date.now()}`,
+    receipt,
     notes: {
       userId: req.user._id.toString(),
       plan,
