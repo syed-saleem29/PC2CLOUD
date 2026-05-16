@@ -45,6 +45,7 @@ import {
   CloudFile,
   Device,
   authenticateUser,
+  clearRefreshToken,
   clearWebToken,
   createFolder,
   deleteFile,
@@ -60,6 +61,7 @@ import {
   resetPassword,
   searchDeviceFiles,
   sendOtp,
+  setRefreshToken,
   setWebToken,
   unlinkDevice,
   updateDeviceName,
@@ -410,6 +412,7 @@ export function Dashboard() {
         return;
       }
       if (data.token) setWebToken(data.token);
+      if (data.refreshToken) setRefreshToken(data.refreshToken);
       setUser(data.user ?? null);
       setIsAuthenticated(true);
       try {
@@ -439,6 +442,7 @@ export function Dashboard() {
     try {
       const data = await verifyEmail(pendingEmail, getOtp());
       if (data.token) setWebToken(data.token);
+      if (data.refreshToken) setRefreshToken(data.refreshToken);
       setUser(data.user);
       setIsAuthenticated(true);
       try {
@@ -517,6 +521,7 @@ export function Dashboard() {
     socketRef.current?.disconnect();
     socketRef.current = null;
     clearWebToken();
+    clearRefreshToken();
     clearSessionKey();
     try {
       await logoutUser();

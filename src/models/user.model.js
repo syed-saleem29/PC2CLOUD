@@ -24,6 +24,12 @@ const userSchema = new mongoose.Schema({
     otp: { type: String, default: null },
     otpExpiry: { type: Date, default: null },
     otpType: { type: String, enum: ["verify", "reset"], default: null },
+    sessions: [
+      {
+        token: { type: String, required: true },
+        expiresAt: { type: Date, required: true },
+      },
+    ],
 })
 
 const userModel = mongoose.model("users",userSchema)

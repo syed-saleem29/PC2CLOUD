@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Cloud, KeyRound, LogIn, Mail, RotateCcw } from "lucide-react";
-import { API_URL, setToken } from "../lib/api";
+import { API_URL, setToken, setRefreshToken } from "../lib/api";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ipc = () => (window as any).require("electron").ipcRenderer;
@@ -72,7 +72,8 @@ export default function Login({ onDone, hasConfig }: { onDone: () => void; hasCo
       const data = await apiPost("/api/auth/login", { email, password });
       if (data.token) {
         setToken(data.token);
-        await ipc().invoke("config:write", { authToken: data.token });
+        setRefreshToken(data.refreshToken || "");
+        await ipc().invoke("config:write", { authToken: data.token, refreshToken: data.refreshToken || "" });
       }
       onDone();
     } catch (err) {
@@ -97,7 +98,8 @@ export default function Login({ onDone, hasConfig }: { onDone: () => void; hasCo
       const data = await apiPost("/api/auth/verify-email", { email: pendingEmail, otp: getOtp() });
       if (data.token) {
         setToken(data.token);
-        await ipc().invoke("config:write", { authToken: data.token });
+        setRefreshToken(data.refreshToken || "");
+        await ipc().invoke("config:write", { authToken: data.token, refreshToken: data.refreshToken || "" });
       }
       onDone();
     } catch (err) {

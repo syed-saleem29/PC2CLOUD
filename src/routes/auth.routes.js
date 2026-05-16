@@ -8,6 +8,7 @@ const { loginLimiter, authLimiter } = require("../middlewares/rateLimit.middlewa
 authRouter.post("/register", authLimiter, asyncHandler(authController.registerController));
 authRouter.post("/login", loginLimiter, asyncHandler(authController.loginController));
 authRouter.post("/logout", asyncHandler(authController.logoutController));
+authRouter.post("/refresh", authLimiter, asyncHandler(authController.refreshController));
 authRouter.get("/me", authMiddleware, asyncHandler(authController.meController));
 authRouter.post("/send-otp", authLimiter, asyncHandler(authController.sendOtpController));
 authRouter.post("/verify-email", authLimiter, asyncHandler(authController.verifyEmailController));

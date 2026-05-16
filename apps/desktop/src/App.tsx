@@ -3,7 +3,7 @@ import { Cloud, Minus, Moon, Sun, X } from "lucide-react";
 import Login from "./screens/Login";
 import Setup from "./screens/Setup";
 import Ready from "./screens/Ready";
-import { API_URL, apiFetch, setToken, getToken } from "./lib/api";
+import { API_URL, apiFetch, setToken, getToken, setRefreshToken } from "./lib/api";
 
 type Screen = "loading" | "login" | "setup" | "folder-missing" | "ready";
 
@@ -177,6 +177,7 @@ export default function App() {
     (async () => {
       const config = await ipc().invoke("config:read");
       if (config?.authToken) setToken(config.authToken);
+      if (config?.refreshToken) setRefreshToken(config.refreshToken);
 
       const authRes = await apiFetch(`${API_URL}/api/auth/me`).catch(() => null);
       if (!authRes?.ok) {
@@ -217,6 +218,7 @@ export default function App() {
     await apiFetch(`${API_URL}/api/auth/logout`, { method: "POST" }).catch(() => {});
     await ipc().invoke("config:clear");
     setToken("");
+    setRefreshToken("");
     setScreen("login");
   }
 
@@ -242,6 +244,7 @@ export default function App() {
       await ipc().invoke("config:write", { deviceId: savedDeviceId, folderPath: savedFolderPath });
     }
     setToken("");
+    setRefreshToken("");
     setHasConfig(false);
     setScreen("login");
   }

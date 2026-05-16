@@ -29,6 +29,7 @@ export type CloudFile = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7000";
 const TOKEN_KEY = "pc2cloud_token";
+const REFRESH_TOKEN_KEY = "pc2cloud_refresh_token";
 
 export function setWebToken(token: string) {
   try { localStorage.setItem(TOKEN_KEY, token); } catch {}
@@ -42,6 +43,18 @@ function getWebToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 
+export function setRefreshToken(token: string) {
+  try { localStorage.setItem(REFRESH_TOKEN_KEY, token); } catch {}
+}
+
+export function clearRefreshToken() {
+  try { localStorage.removeItem(REFRESH_TOKEN_KEY); } catch {}
+}
+
+function getRefreshToken(): string | null {
+  try { return localStorage.getItem(REFRESH_TOKEN_KEY); } catch { return null; }
+}
+
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
     super(message);
@@ -49,7 +62,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, _retry = false): Promise<T> {
   const token = getWebToken();
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -60,6 +73,26 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...options.headers,
     },
   });
+
+  if (response.status === 401 && !_retry) {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      const refreshRes = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        setWebToken(refreshData.token);
+        setRefreshToken(refreshData.refreshToken);
+        return request<T>(path, options, true);
+      }
+      clearWebToken();
+      clearRefreshToken();
+    }
+  }
 
   const data = await response.json().catch(() => ({}));
 
@@ -80,6 +113,7 @@ export function authenticateUser(
     requiresVerification?: boolean;
     email?: string;
     token?: string;
+    refreshToken?: string;
   }>(`/api/auth/${mode}`, { method: "POST", body: JSON.stringify(payload) });
 }
 
@@ -91,7 +125,7 @@ export function sendOtp(email: string, type: "verify" | "reset") {
 }
 
 export function verifyEmail(email: string, otp: string) {
-  return request<{ message: string; user: { userName?: string; userEmail: string }; token: string }>(
+  return request<{ message: string; user: { userName?: string; userEmail: string }; token: string; refreshToken: string }>(
     "/api/auth/verify-email",
     { method: "POST", body: JSON.stringify({ email, otp }) },
   );
@@ -105,8 +139,10 @@ export function resetPassword(email: string, otp: string, newPassword: string) {
 }
 
 export function logoutUser() {
+  const refreshToken = getRefreshToken();
   return request<{ message: string }>("/api/auth/logout", {
     method: "POST",
+    body: JSON.stringify({ refreshToken }),
   });
 }
 
