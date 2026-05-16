@@ -1,5 +1,6 @@
 const fileModel = require("../models/file.model");
 const deviceModel = require("../models/device.model");
+const { logAction } = require("../utils/audit");
 
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -209,6 +210,7 @@ async function mkdirController(req, res) {
     return res.status(503).json({ message: "Device socket not connected" });
   }
 
+  logAction(req.user._id, "mkdir", { req, deviceId, filePath: folderPath });
   res.status(200).json({ message: "Folder creation requested" });
 }
 
@@ -241,6 +243,7 @@ async function deleteFileController(req, res) {
     realtime.emitToDevice(deviceId, "file:delete", { filePath });
   }
 
+  logAction(req.user._id, "delete", { req, deviceId, filePath, details: { itemType: item?.itemType } });
   res.status(200).json({ message: "Item deleted" });
 }
 
@@ -305,6 +308,7 @@ async function renameItemController(req, res) {
   const realtime = require("../realtime");
   realtime.emitToDevice(deviceId, "file:rename", { oldPath, newPath });
 
+  logAction(req.user._id, "rename", { req, deviceId, filePath: oldPath, details: { newPath, newName: newName.trim() } });
   res.status(200).json({ message: "Item renamed", newPath });
 }
 
@@ -389,6 +393,7 @@ async function moveItemController(req, res) {
   const realtime = require("../realtime");
   realtime.emitToDevice(deviceId, "file:rename", { oldPath, newPath });
 
+  logAction(req.user._id, "move", { req, deviceId, filePath: oldPath, details: { newPath, destFolder } });
   res.status(200).json({ message: "Item moved", newPath });
 }
 

@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const deviceModel = require("../models/device.model");
 const realtime = require("../realtime");
+const { logAction } = require("../utils/audit");
 
 function parseStorageBytes(value) {
   if (value === undefined || value === null || value === "") {
@@ -109,6 +110,7 @@ async function registerDeviceController(req, res) {
     },
   );
 
+  logAction(req.user._id, "device_register", { req, deviceId: currentDeviceId, details: { deviceName: deviceUpdates.deviceName } });
   res.status(200).json({
     message: "Device registered successfully",
     device: formatDevice(device),
@@ -244,6 +246,7 @@ async function unlinkDeviceController(req, res) {
     });
   }
 
+  logAction(req.user._id, "device_unlink", { req, deviceId, details: { deviceName: device.deviceName } });
   res.status(200).json({
     message: "Device unlinked successfully",
     deviceId,
@@ -284,6 +287,7 @@ async function downloadFileController(req, res) {
     realtime.pendingDownloads.delete(requestId);
     return res.status(503).json({ message: "Device socket not connected" });
   }
+  logAction(req.user._id, "download", { req, deviceId, filePath });
 }
 
 async function uploadFileController(req, res) {
@@ -316,6 +320,7 @@ async function uploadFileController(req, res) {
     realtime.pendingUploads.delete(requestId);
     return res.status(503).json({ message: "Device socket not connected" });
   }
+  logAction(req.user._id, "upload", { req, deviceId, filePath, details: { sizeBytes: buffer.length } });
 }
 
 module.exports = {

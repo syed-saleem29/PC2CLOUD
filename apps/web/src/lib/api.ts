@@ -220,3 +220,19 @@ export function createPreviewFileIndex(deviceId: string) {
     },
   );
 }
+
+export type AuditLog = {
+  _id: string;
+  action: string;
+  deviceId: string | null;
+  filePath: string | null;
+  details: Record<string, unknown> | null;
+  ipAddress: string | null;
+  createdAt: string;
+};
+
+export function getAuditLogs(page = 1, limit = 50) {
+  return request<{ logs: AuditLog[]; page: number; limit: number }>(
+    `/api/audit?page=${page}&limit=${limit}`,
+  );
+}

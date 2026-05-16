@@ -39,6 +39,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import {
   ApiError,
+  AuditLog,
   AuthMode,
   AuthScreen,
   CloudFile,
@@ -47,6 +48,7 @@ import {
   clearWebToken,
   createFolder,
   deleteFile,
+  getAuditLogs,
   getCurrentUser,
   getDeviceFiles,
   getDevices,
@@ -165,6 +167,8 @@ export function Dashboard() {
   const [searchResults, setSearchResults] = useState<CloudFile[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [draggingFile, setDraggingFile] = useState<CloudFile | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
@@ -322,6 +326,24 @@ export function Dashboard() {
     }, 5_000);
     return () => clearInterval(id);
   }, [isAuthenticated]);
+
+  async function fetchAuditLogs() {
+    setIsLoadingActivity(true);
+    try {
+      const data = await getAuditLogs();
+      setAuditLogs(data.logs);
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setIsLoadingActivity(false);
+    }
+  }
+
+  // Load audit logs whenever the Activity tab becomes active
+  useEffect(() => {
+    if (activeSection === "activity" && isAuthenticated) fetchAuditLogs();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection, isAuthenticated]);
 
   async function refreshDevices() {
     setIsLoading(true);
@@ -1615,13 +1637,72 @@ export function Dashboard() {
         {activeSection === "activity" && (
           <div className="page">
             <div className="page-head">
-              <div><h2>Activity</h2><p>Recent file operations and sync events.</p></div>
+              <div><h2>Activity</h2><p>Recent file operations and access events on your account.</p></div>
+              <button className="btn btn-secondary" onClick={fetchAuditLogs} disabled={isLoadingActivity}>
+                <RefreshCcw size={14} className={isLoadingActivity ? "animate-spin" : ""} aria-hidden="true" /> Refresh
+              </button>
             </div>
-            <div className="empty-state">
-              <Activity size={36} aria-hidden="true" />
-              <h3>Activity log</h3>
-              <p>Activity tracking coming soon.</p>
-            </div>
+
+            {isLoadingActivity ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 48, fontSize: 13, color: "var(--fg-muted)" }}>
+                <Loader2 size={18} className="animate-spin" aria-hidden="true" /> Loading activity…
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <div className="empty-state">
+                <Activity size={36} aria-hidden="true" />
+                <h3>No activity yet</h3>
+                <p>File operations, logins, and device events will appear here.</p>
+              </div>
+            ) : (
+              <div className="device-list">
+                {auditLogs.map((log) => {
+                  const actionMeta: Record<string, { label: string; icon: React.ReactNode; color?: string }> = {
+                    login:           { label: "Signed in",          icon: <ShieldCheck size={15} />, color: "var(--success)" },
+                    login_failed:    { label: "Failed sign-in",     icon: <ShieldCheck size={15} />, color: "var(--danger, #ef4444)" },
+                    logout:          { label: "Signed out",         icon: <LogOut size={15} /> },
+                    register:        { label: "Account created",    icon: <ShieldCheck size={15} />, color: "var(--brand-600)" },
+                    download:        { label: "Downloaded",         icon: <ArrowDownToLine size={15} /> },
+                    upload:          { label: "Uploaded",           icon: <Upload size={15} />, color: "var(--brand-600)" },
+                    delete:          { label: "Deleted",            icon: <Trash2 size={15} />, color: "var(--danger, #ef4444)" },
+                    rename:          { label: "Renamed",            icon: <Pencil size={15} /> },
+                    move:            { label: "Moved",              icon: <FolderOpen size={15} /> },
+                    mkdir:           { label: "Folder created",     icon: <FolderPlus size={15} /> },
+                    device_register: { label: "Device connected",   icon: <Computer size={15} />, color: "var(--success)" },
+                    device_unlink:   { label: "Device unlinked",    icon: <Computer size={15} />, color: "var(--danger, #ef4444)" },
+                  };
+                  const meta = actionMeta[log.action] ?? { label: log.action, icon: <Activity size={15} /> };
+                  const subject = log.filePath
+                    ? log.filePath.split("/").filter(Boolean).pop() ?? log.filePath
+                    : (log.details as { deviceName?: string } | null)?.deviceName ?? null;
+
+                  return (
+                    <div key={log._id} className="device-row anim-fade-in" style={{ alignItems: "center" }}>
+                      <div className="device-icon" style={{ color: meta.color ?? "var(--fg-muted)", background: "var(--bg-subtle)", flexShrink: 0 }}>
+                        {meta.icon}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="device-name" style={{ fontWeight: 500 }}>
+                          {meta.label}
+                          {subject && (
+                            <span style={{ fontWeight: 400, color: "var(--fg-muted)", marginLeft: 6 }}>— {subject}</span>
+                          )}
+                        </div>
+                        <div className="device-meta" style={{ marginTop: 2 }}>
+                          {log.filePath && <span className="mono" style={{ marginRight: 8 }}>{log.filePath}</span>}
+                          {log.deviceId && !log.filePath && <span style={{ marginRight: 8 }}>Device {log.deviceId.slice(0, 8)}…</span>}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: 12, color: "var(--fg-muted)" }}>{formatDate(log.createdAt)}</div>
+                        {log.ipAddress && (
+                          <div className="mono" style={{ fontSize: 11, color: "var(--fg-subtle)", marginTop: 2 }}>{log.ipAddress}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

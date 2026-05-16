@@ -2,6 +2,7 @@ const userModel = require("../models/user.model");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendOtpEmail } = require("../services/email.service");
+const { logAction } = require("../utils/audit");
 
 const isProd = process.env.NODE_ENV === "production";
 const authCookieOptions = {
@@ -50,6 +51,8 @@ async function registerController(req, res) {
 
   await saveAndSendOtp(user, "verify");
 
+  logAction(user._id, "register", { req, details: { email: normalizedEmail } });
+
   res.status(201).json({
     message: "Account created. Check your email for a verification code.",
     requiresVerification: true,
@@ -71,6 +74,7 @@ async function loginController(req, res) {
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
+    logAction(user._id, "login_failed", { req, details: { email: normalizedEmail, reason: "wrong_password" } });
     return res.status(401).json({ message: "Invalid password" });
   }
 
@@ -86,6 +90,7 @@ async function loginController(req, res) {
 
   const token = createToken(user);
   res.cookie("PTC_Token", token, authCookieOptions);
+  logAction(user._id, "login", { req });
   res.status(200).json({
     message: "Logged in successfully",
     token,
@@ -94,6 +99,7 @@ async function loginController(req, res) {
 }
 
 async function logoutController(req, res) {
+  if (req.user) logAction(req.user._id, "logout", { req });
   res.clearCookie("PTC_Token", authCookieOptions);
   res.status(200).json({ message: "Logged out successfully" });
 }

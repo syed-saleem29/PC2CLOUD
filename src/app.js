@@ -8,6 +8,7 @@ const { corsOptions } = require("./config/cors")
 const authRouter = require("./routes/auth.routes")
 const deviceRouter = require("./routes/device.routes")
 const transferRouter = require("./routes/transfer.routes")
+const auditRouter = require("./routes/audit.routes")
 
 // Trust the first proxy hop so req.ip reflects the real client IP behind nginx/Cloudflare
 if (process.env.NODE_ENV === "production") {
@@ -38,6 +39,7 @@ app.get("/", (req, res) => res.json({ status: "ok" }))
 app.use("/api/auth",authRouter)
 app.use("/api/devices", deviceRouter)
 app.use("/api/transfer", transferRouter)
+app.use("/api/audit", auditRouter)
 
 // Serve installer files for download + auto-updater
 app.use("/releases", express.static(path.join(__dirname, "../releases"), {
