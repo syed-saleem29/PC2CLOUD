@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npx electron-builder *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\PC2CLOOUD\\\\scripts\\\\\" -File | Where-Object {$_.Extension -match '\\\\.\\(png|ico|icns|svg|mjs|js\\)$'})",
+      "PowerShell(Copy-Item \"d:\\\\PC2CLOOUD\\\\apps\\\\desktop\\\\dist\\\\PC2CLOUD Setup 0.1.0.exe\" -Destination \"d:\\\\PC2CLOOUD\\\\releases\\\\PC2CLOUD Setup 0.1.0.exe\" -Force)"
     ]
   }
 }

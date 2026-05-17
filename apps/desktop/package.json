@@ -58,14 +58,11 @@
       "shortcutName": "PC2CLOUD",
       "installerIcon": "resources/icon.ico",
       "uninstallerIcon": "resources/icon.ico",
-      "installerHeaderIcon": "resources/icon.ico",
-      "installerSidebar": "resources/installerSidebar.bmp",
-      "uninstallerSidebar": "resources/uninstallerSidebar.bmp",
-      "installerHeader": "resources/installerHeader.bmp"
+      "installerHeaderIcon": "resources/icon.ico"
     },
     "publish": {
       "provider": "generic",
-      "url": "http://localhost:7000/releases"
+      "url": "https://pc2cloud.onrender.com/releases"
     }
   },
   "dependencies": {
