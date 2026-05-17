@@ -60,7 +60,7 @@ const features = [
 
 const steps = [
   { n: "01", title: "Create your account", desc: "Sign up free in 30 seconds — no credit card required. Verify your email and you're in." },
-  { n: "02", title: "Install the desktop agent", desc: "Download the lightweight PC2CLOUD agent for Windows. It runs silently in the background and connects to the relay server." },
+  { n: "02", title: "Install the desktop agent", desc: "Download the lightweight PC2CLOUD agent for Windows from the releases page. It runs silently in the background and connects to the relay server." },
   { n: "03", title: "Access from anywhere", desc: "Open the web dashboard or the companion app from any device. Your PC appears online and ready." },
 ];
 
@@ -121,7 +121,7 @@ export default function Marketing() {
               <ThemeIcon theme={theme} />
             </button>
             <a href="/dashboard" className="btn btn-ghost">Sign in</a>
-            <a href="/dashboard" className="btn btn-primary">
+            <a href="https://github.com/syed-saleem29/PC2CLOUD/releases/download/v0.1.0/PC2CLOUD.Setup.0.1.0.exe" target="_blank" rel="noopener noreferrer" className="btn btn-primary">
               <Download size={14} aria-hidden /> Download
             </a>
           </div>
@@ -375,7 +375,7 @@ export default function Marketing() {
               <a href="#features">Features</a>
               <a href="#pricing">Pricing</a>
               <a href="#how-it-works">How it works</a>
-              <a href="/dashboard">Download</a>
+              <a href="https://github.com/syed-saleem29/PC2CLOUD/releases/latest" target="_blank" rel="noopener noreferrer">Download</a>
             </div>
             <div className="footer-col">
               <h4>Account</h4>
