@@ -7,12 +7,14 @@ import {
   ArrowUpRight,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Cloud,
   Computer,
   Database,
   Eye,
   FileText,
+  Menu,
   FolderOpen,
   FolderPlus,
   Globe,
@@ -189,6 +191,8 @@ export function Dashboard() {
   const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [sidebarOpen, setSidebarOpen] = useState(false);       // mobile drawer
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // desktop icon-only
   const socketRef = useRef<Socket | null>(null);
   const selectedDeviceIdRef = useRef<string | null>(null);
   const selectedPathRef = useRef<string>("/");
@@ -1200,9 +1204,26 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="shell">
+    <div className={`shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="sidebar">
+      <aside className={`sidebar${sidebarOpen ? " sidebar-open" : ""}${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+
+        {/* Desktop collapse toggle */}
+        <button
+          className="sidebar-collapse-btn"
+          onClick={() => setSidebarCollapsed((c) => !c)}
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {sidebarCollapsed ? <ChevronRight size={13} aria-hidden="true" /> : <ChevronLeft size={13} aria-hidden="true" />}
+        </button>
+
         <div className="sidebar-logo">
           <div className="logo">
             <span className="logo-mark" style={{ width: 28, height: 28, borderRadius: 7 }}>
@@ -1214,9 +1235,12 @@ export function Dashboard() {
 
         <div className="sidebar-section">
           {sidebarMainItems.map(({ id, label, icon, badge }) => (
-            <button key={id} className={`nav-item${activeSection === id ? " active" : ""}`} onClick={() => setActiveSection(id)}>
+            <button key={id} className={`nav-item${activeSection === id ? " active" : ""}`}
+              onClick={() => { setActiveSection(id); setSidebarOpen(false); }}
+              title={label}
+            >
               {icon}
-              {label}
+              <span className="nav-item-label">{label}</span>
               {badge != null && <span className="nav-item-end mono">{badge}</span>}
             </button>
           ))}
@@ -1225,9 +1249,12 @@ export function Dashboard() {
         <div className="sidebar-section">
           <div className="sidebar-section-label">Settings</div>
           {sidebarSettingsItems.map(({ id, label, icon }) => (
-            <button key={id} className={`nav-item${activeSection === id ? " active" : ""}`} onClick={() => setActiveSection(id)}>
+            <button key={id} className={`nav-item${activeSection === id ? " active" : ""}`}
+              onClick={() => { setActiveSection(id); setSidebarOpen(false); }}
+              title={label}
+            >
               {icon}
-              {label}
+              <span className="nav-item-label">{label}</span>
             </button>
           ))}
         </div>
@@ -1323,6 +1350,19 @@ export function Dashboard() {
 
       {/* ── Main ── */}
       <div className="main">
+
+        {/* Mobile topbar — visible only on small screens */}
+        <div className="mobile-topbar">
+          <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+            <Menu size={20} aria-hidden="true" />
+          </button>
+          <div className="logo">
+            <span className="logo-mark" style={{ width: 24, height: 24, borderRadius: 6 }}>
+              <Cloud size={13} color="white" aria-hidden="true" />
+            </span>
+            <span className="logo-text" style={{ fontSize: 13 }}>PC2CLOUD</span>
+          </div>
+        </div>
 
         {/* ── Fingerprint warning banners ── */}
         {fingerprintWarnings.map((w) => (
